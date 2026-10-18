@@ -284,4 +284,31 @@ class MyOperatorsTest extends TestCase
             ->assertSee('href="'.route('panel.my-operators.index').'"', false);
         $this->get(route('help'))->assertOk()->assertSee('Mis controladores');
     }
+
+    public function test_rows_of_an_event_left_without_tatamis_can_still_be_cleared(): void
+    {
+        [$org, $acc] = $this->tatamiAccountAndEvents();
+        $none = Event::factory()->for($org)->create(['tatami_count' => 0]);
+        $none->operators()->create(['user_id' => $acc->id, 'tatami' => 1]);
+
+        $this->actingAs($org)->put(route('panel.my-operators.assign', [$acc, $none]), ['tatamis' => [1]])->assertNotFound();
+        $this->assertSame(1, $none->operators()->count());
+
+        $this->put(route('panel.my-operators.assign', [$acc, $none]))->assertSessionHasNoErrors();
+        $this->assertSame(0, $none->operators()->count());
+    }
+
+    public function test_emails_are_stored_in_lowercase_and_uniqueness_ignores_case(): void
+    {
+        $org = User::factory()->create();
+
+        $this->actingAs($org)->post(route('panel.my-operators.store'), ['username' => 'mail.uno', 'password' => 'secreto1', 'email' => ' Ana.Perez@Example.COM '])->assertSessionHasNoErrors();
+        $this->assertSame('ana.perez@example.com', User::where('username', 'mail.uno')->value('email'));
+
+        $this->post(route('panel.my-operators.store'), ['username' => 'mail.dos', 'password' => 'secreto1', 'email' => 'ANA.PEREZ@example.com'])->assertSessionHasErrors('email');
+
+        $second = $this->account($org, 'mail.tres');
+        $this->put(route('panel.my-operators.update', $second), ['username' => 'mail.tres', 'email' => 'Otro@Example.com'])->assertSessionHasNoErrors();
+        $this->assertSame('otro@example.com', $second->fresh()->email);
+    }
 }

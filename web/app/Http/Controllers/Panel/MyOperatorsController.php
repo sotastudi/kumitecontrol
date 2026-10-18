@@ -8,6 +8,7 @@ use App\Models\TatamiOperator;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -89,8 +90,6 @@ class MyOperatorsController extends Controller
     {
         $organizer = $this->organizer($request);
         abort_unless((int) $event->user_id === (int) $organizer->id, 403);
-        // Un evento sin tatamis no admite asignaciones.
-        abort_unless((int) $event->tatami_count > 0, 404);
         abort_unless($operator->isTatamiAccount() && $this->visibleTo($organizer, $operator), 403);
 
         $data = $request->validate([
@@ -98,11 +97,15 @@ class MyOperatorsController extends Controller
             'tatamis.*' => ['integer', 'min:1', 'max:'.$event->tatamiCount()],
         ]);
         $tatamis = array_values(array_unique(array_map('intval', $data['tatamis'] ?? [])));
+        // Un evento sin tatamis no admite asignaciones nuevas (sí retirar las que tuviera).
+        abort_if($tatamis && (int) $event->tatami_count < 1, 404);
 
-        $event->operators()->where('user_id', $operator->id)->whereNotIn('tatami', $tatamis)->delete();
-        foreach ($tatamis as $tatami) {
-            $event->operators()->firstOrCreate(['user_id' => $operator->id, 'tatami' => $tatami]);
-        }
+        DB::transaction(function () use ($event, $operator, $tatamis) {
+            $event->operators()->where('user_id', $operator->id)->whereNotIn('tatami', $tatamis)->delete();
+            foreach ($tatamis as $tatami) {
+                $event->operators()->firstOrCreate(['user_id' => $operator->id, 'tatami' => $tatami]);
+            }
+        });
 
         return back()->with('status', $tatamis
             ? "«{$operator->username}» puede puntuar en «{$event->name}» los tatamis: ".implode(', ', $tatamis).'.'
@@ -154,5 +157,9 @@ class MyOperatorsController extends Controller
     private function normalize(Request $request): void
     {
         $request->merge(['username' => mb_strtolower(trim((string) $request->input('username')))]);
+        // El correo se guarda en minúsculas para que la unicidad no dependa del motor de base de datos.
+        if ($request->filled('email')) {
+            $request->merge(['email' => mb_strtolower(trim((string) $request->input('email')))]);
+        }
     }
 }
