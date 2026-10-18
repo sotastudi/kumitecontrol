@@ -1,6 +1,8 @@
 // Puntuaciones sin conexión: si el envío falla por falta de internet, la puntuación se guarda en el navegador
 // (localStorage) y se reenvía sola al volver la conexión. El indicador de la barra muestra una nube con check cuando
 // todo está guardado en el servidor y un aviso + nube cuando hay resultados pendientes.
+import { classify, flushQueue } from './sync-queue';
+
 const KEY = 'kumitecontrol.pendingScores';
 const indicator = document.getElementById('sync-indicator');
 const panel = document.getElementById('sync-panel');
@@ -26,15 +28,17 @@ const enqueue = (item) => {
     writeQueue([...readQueue().filter((i) => i.url !== item.url), item]);
 };
 
-const dequeue = (url) => writeQueue(readQueue().filter((i) => i.url !== url));
+// Con createdAt solo se quita esa versión: un reenvío posterior del mismo combate no se pierde si el anterior termina después.
+const dequeue = (url, createdAt) => writeQueue(readQueue().filter((i) => !(i.url === url && (createdAt === undefined || i.createdAt === createdAt))));
 
 const csrf = async () => {
-    const res = await fetch('/panel/csrf', { credentials: 'same-origin', headers: { Accept: 'application/json' } });
+    // La app puede colgar de un prefijo (p. ej. /kumite): la URL viene de la ruta de Laravel, no se fija aquí.
+    const res = await fetch(indicator?.dataset.csrfUrl || '/panel/csrf', { credentials: 'same-origin', headers: { Accept: 'application/json' } });
     if (!res.ok) throw new Error('auth');
     return (await res.json()).token;
 };
 
-// 'ok' (guardado), 'network' (sin conexión: se queda pendiente), 'auth' (sesión caducada: pendiente) o 'rejected' (el servidor lo rechaza).
+// 'ok' (guardado), 'network' (sin conexión), 'auth' (sesión caducada), 'retry' (fallo del servidor: se reintenta) o 'rejected' (el servidor lo rechaza).
 const send = async (item) => {
     let response;
     try {
@@ -51,33 +55,32 @@ const send = async (item) => {
         return { state: e.message === 'auth' ? 'auth' : 'network' };
     }
 
-    if (response.ok) return { state: 'ok', json: await response.json().catch(() => ({})) };
-    if (response.status === 401 || response.status === 419) return { state: 'auth' };
-    if (response.status >= 500 || response.status === 429) return { state: 'network' };
+    const state = classify(response.status);
+    if (state === 'ok') return { state, json: await response.json().catch(() => ({})) };
+    if (state === 'auth') return { state };
+    if (state === 'retry') return { state, message: `Error del servidor (${response.status}); se reintentará.` };
 
     const json = await response.json().catch(() => ({}));
     const firstError = json.errors ? Object.values(json.errors).flat()[0] : null;
 
-    return { state: 'rejected', message: json.message || firstError || 'El servidor no ha aceptado la puntuación.' };
+    return { state: 'rejected', message: json.message || firstError || `El servidor no ha aceptado la puntuación (${response.status}).` };
 };
 
 let flushing = false;
+let sessionExpired = false;
 const flush = async () => {
     if (flushing) return;
     flushing = true;
     let synced = 0;
     try {
-        for (const item of readQueue().sort((a, b) => a.createdAt - b.createdAt)) {
-            const result = await send(item);
-            if (result.state === 'ok') {
-                dequeue(item.url);
-                synced++;
-            } else if (result.state === 'rejected') {
-                writeQueue(readQueue().map((i) => (i.url === item.url ? { ...i, error: result.message } : i)));
-            } else {
-                break; // sin conexión o sesión caducada: se reintenta más tarde
-            }
-        }
+        const out = await flushQueue(readQueue(), send);
+        out.synced.forEach((item) => { dequeue(item.url, item.createdAt); synced++; });
+        const notes = new Map([
+            ...out.rejected.map(({ item, message }) => [item.createdAt, { error: message }]),
+            ...out.retry.map(({ item, message }) => [item.createdAt, { issue: message }]),
+        ]);
+        sessionExpired = out.stopped === 'auth';
+        writeQueue(readQueue().map((i) => (notes.has(i.createdAt) ? { ...i, ...notes.get(i.createdAt) } : i)));
     } finally {
         flushing = false;
     }
@@ -114,20 +117,24 @@ const showFormStatus = (form, state, text) => {
 
 function render() {
     const queue = readQueue();
-    const pending = queue.length;
     const failed = queue.filter((i) => i.error).length;
+    const pending = queue.length - failed;
+    const needsAttention = failed > 0 || sessionExpired;
+    const active = queue.length > 0 || sessionExpired;
 
     if (indicator) {
-        indicator.dataset.syncState = pending ? 'pending' : 'synced';
-        indicator.querySelector('.sync-cloud-ok')?.classList.toggle('d-none', pending > 0);
+        indicator.dataset.syncState = needsAttention ? 'attention' : pending ? 'pending' : 'synced';
+        indicator.querySelector('.sync-cloud-ok')?.classList.toggle('d-none', active);
         const pend = indicator.querySelector('.sync-pending');
-        pend?.classList.toggle('d-none', pending === 0);
-        pend?.classList.toggle('d-flex', pending > 0);
+        pend?.classList.toggle('d-none', !active);
+        pend?.classList.toggle('d-flex', active);
         const count = indicator.querySelector('.sync-count');
-        if (count) count.textContent = pending ? String(pending) : '';
-        const label = pending
-            ? `${pending} ${pending === 1 ? 'resultado pendiente' : 'resultados pendientes'} de sincronizar${navigator.onLine ? '' : ' (sin conexión)'}${failed ? `; ${failed} rechazado(s)` : ''}`
-            : 'Todo guardado en el servidor';
+        if (count) count.textContent = queue.length ? String(queue.length) : '';
+        const parts = [];
+        if (sessionExpired) parts.push('la sesión ha caducado: vuelve a iniciar sesión');
+        else if (pending) parts.push(`${pending} ${pending === 1 ? 'resultado pendiente' : 'resultados pendientes'} de sincronizar${navigator.onLine ? '' : ' (sin conexión)'}`);
+        if (failed) parts.push(`${failed} rechazado(s) por el servidor: revísalos o descártalos`);
+        const label = parts.length ? parts.join('; ') : 'Todo guardado en el servidor';
         indicator.title = label;
         const hidden = indicator.querySelector('.sync-label');
         if (hidden) hidden.textContent = label;
@@ -137,7 +144,7 @@ function render() {
     document.querySelectorAll('[data-score-form]').forEach((form) => {
         const item = queue.find((i) => i.url === form.getAttribute('action'));
         if (item?.error) showFormStatus(form, 'error', item.error);
-        else if (item) showFormStatus(form, 'pending', 'Guardado en este dispositivo; pendiente de sincronizar');
+        else if (item) showFormStatus(form, 'pending', item.issue || 'Guardado en este dispositivo; pendiente de sincronizar');
     });
 
     renderPanel(queue);
@@ -154,16 +161,23 @@ function renderPanel(queue) {
     const title = document.createElement('strong');
     title.textContent = 'Pendientes de sincronizar';
     body.appendChild(title);
+    if (sessionExpired) {
+        const login = document.createElement('a');
+        login.href = indicator?.dataset.loginUrl || '/acceso';
+        login.className = 'd-block my-1';
+        login.textContent = 'Iniciar sesión de nuevo';
+        body.appendChild(login);
+    }
     const list = document.createElement('ul');
     list.className = 'list-unstyled mb-2 mt-1';
     queue.forEach((item) => {
         const li = document.createElement('li');
-        li.textContent = `${item.label}${item.error ? ` — rechazado: ${item.error}` : ''} `;
+        li.textContent = `${item.label}${item.error ? ` — rechazado: ${item.error}` : item.issue ? ` — ${item.issue}` : ''} `;
         const drop = document.createElement('button');
         drop.type = 'button';
         drop.className = 'btn btn-link btn-sm p-0 text-danger';
         drop.textContent = 'Descartar';
-        drop.addEventListener('click', () => dequeue(item.url));
+        drop.addEventListener('click', () => dequeue(item.url, item.createdAt));
         li.appendChild(drop);
         list.appendChild(li);
     });
@@ -173,7 +187,7 @@ function renderPanel(queue) {
     retry.className = 'btn btn-sm btn-outline-primary';
     retry.textContent = 'Reintentar ahora';
     retry.addEventListener('click', () => {
-        writeQueue(readQueue().map(({ error, ...rest }) => rest));
+        writeQueue(readQueue().map(({ error, issue, ...rest }) => rest));
         flush();
     });
     body.appendChild(retry);

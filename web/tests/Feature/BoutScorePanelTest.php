@@ -250,4 +250,13 @@ class BoutScorePanelTest extends TestCase
         $this->assertStringContainsString('data-score-status', $html);
         $this->assertStringContainsString('name="csrf-token"', $html);
     }
+
+    public function test_the_sync_indicator_carries_the_csrf_url_so_the_queue_works_when_the_app_lives_under_a_path_prefix(): void
+    {
+        [$user, $event, $category] = $this->setUpBracket();
+
+        $html = $this->actingAs($user)->get(route('panel.brackets.show', [$event, $category]))->getContent();
+
+        $this->assertStringContainsString('data-csrf-url="'.route('panel.csrf').'"', $html);
+    }
 }

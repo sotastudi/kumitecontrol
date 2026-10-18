@@ -4,7 +4,8 @@
     "type": "module",
     "scripts": {
         "build": "vite build",
-        "dev": "vite"
+        "dev": "vite",
+        "test:js": "node --test resources/js/"
     },
     "devDependencies": {
         "concurrently": "^10.0.3",
