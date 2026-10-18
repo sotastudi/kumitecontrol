@@ -13,14 +13,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
-#[Fillable(['first_name', 'last_name', 'club', 'birth_date', 'sex', 'weight', 'level', 'email', 'phone', 'notes', 'guardian_name', 'guardian_contact'])]
+#[Fillable(['first_name', 'last_name', 'club', 'birth_date', 'sex', 'weight', 'level', 'email', 'phone', 'notes', 'guardian_name', 'guardian_contact', 'photo_public'])]
 class Competitor extends Model
 {
     /** @use HasFactory<CompetitorFactory> */
     use HasFactory;
 
     /** Campos de datos personales que se copian de un formulario. */
-    public const FIELDS = ['first_name', 'last_name', 'club', 'birth_date', 'sex', 'weight', 'level', 'email', 'phone', 'notes', 'guardian_name', 'guardian_contact'];
+    public const FIELDS = ['first_name', 'last_name', 'club', 'birth_date', 'sex', 'weight', 'level', 'email', 'phone', 'notes', 'guardian_name', 'guardian_contact', 'photo_public'];
 
     protected function casts(): array
     {
@@ -29,6 +29,7 @@ class Competitor extends Model
             'sex' => Sex::class,
             'weight' => 'float',
             'guardian_consent_at' => 'datetime',
+            'photo_public' => 'boolean',
         ];
     }
 
@@ -80,6 +81,22 @@ class Competitor extends Model
     public function hasPhoto(): bool
     {
         return filled($this->photo_path) && Storage::disk('local')->exists($this->photo_path);
+    }
+
+    /**
+     * URL pública de la foto o null si no debe mostrarse: exige foto, permiso del evento y de la ficha,
+     * y que sea adulto el día del evento o tenga consentimiento del tutor. No toca disco.
+     */
+    public function publicPhotoUrl(Event $event): ?string
+    {
+        $adult = $this->birth_date !== null && ! $this->isMinorOn($event->starts_on);
+
+        if (! filled($this->photo_path) || ! $this->photo_public || ! $event->show_photos_publicly
+            || ! ($adult || $this->guardian_consent_at !== null)) {
+            return null;
+        }
+
+        return route('public.competitors.photo', [$event, $this]).'?v='.$this->updated_at?->timestamp;
     }
 
     public function hasGuardianData(): bool

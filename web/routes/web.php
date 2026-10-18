@@ -45,6 +45,8 @@ Route::post('eventos/{event:slug}/codigo', [PublicEventController::class, 'acces
     ->middleware('throttle:10,1')->name('public.events.access');
 Route::get('eventos/{event:slug}/categorias/{category}', [PublicCategoryController::class, 'show'])
     ->middleware(EnsureResultsAccess::class)->scopeBindings()->name('public.categories.show');
+Route::get('eventos/{event:slug}/competidores/{competitor}/foto', [PublicEventController::class, 'competitorPhoto'])
+    ->middleware(EnsureResultsAccess::class)->scopeBindings()->name('public.competitors.photo');
 Route::post('eventos/{event:slug}/inscripcion', [PublicRegistrationController::class, 'store'])
     ->middleware(['auth', 'throttle:10,1'])->name('public.registration.store');
 Route::post('eventos/{event:slug}/inscripcion/plantel', [PublicRegistrationController::class, 'fromRoster'])

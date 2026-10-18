@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Competitor;
 use App\Models\Event;
 use App\Models\EventClub;
 use App\Support\ResultsAccess;
@@ -98,5 +99,11 @@ class PublicEventController extends Controller
         abort_unless($allowed && $club->user->hasLogo(), 404);
 
         return Storage::disk('local')->response($club->user->logo_path, null, ['X-Content-Type-Options' => 'nosniff', 'Cache-Control' => $event->isListed() ? 'public, max-age=3600' : 'private, max-age=600']);
+    }
+
+    /** Foto pública de un inscrito (la implementa la tarea 3 del plan). */
+    public function competitorPhoto(Event $event, Competitor $competitor): StreamedResponse
+    {
+        abort(404);
     }
 }
