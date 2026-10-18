@@ -25,6 +25,7 @@ use App\Http\Controllers\Panel\RegistrationController;
 use App\Http\Controllers\Panel\ResultResetController;
 use App\Http\Controllers\Panel\TatamiController;
 use App\Http\Controllers\Panel\TestDataController;
+use App\Http\Controllers\Panel\MyOperatorsController;
 use App\Http\Controllers\Panel\TatamiOperatorController;
 use App\Http\Controllers\Panel\WithdrawalController;
 use App\Http\Controllers\PublicCategoryController;
@@ -83,6 +84,10 @@ Route::middleware('auth')->prefix('panel')->name('panel.')->group(function () {
     Route::get('perfil/logo', [ProfileController::class, 'logo'])->name('profile.logo.show');
     Route::put('perfil/logo', [ProfileController::class, 'updateLogo'])->name('profile.logo');
     Route::put('perfil/contrasena', [ProfileController::class, 'updatePassword'])->middleware('throttle:6,1')->name('profile.password');
+    Route::get('controladores', [MyOperatorsController::class, 'index'])->name('my-operators.index');
+    Route::post('controladores', [MyOperatorsController::class, 'store'])->name('my-operators.store');
+    Route::put('controladores/{operator}', [MyOperatorsController::class, 'update'])->name('my-operators.update');
+    Route::delete('controladores/{operator}', [MyOperatorsController::class, 'destroy'])->name('my-operators.destroy');
     Route::get('eventos', [EventController::class, 'index'])->name('events.index');
     Route::get('eventos/crear', [EventController::class, 'create'])->name('events.create');
     Route::post('eventos', [EventController::class, 'store'])->name('events.store');

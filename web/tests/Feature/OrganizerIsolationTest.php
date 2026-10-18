@@ -45,7 +45,8 @@ class OrganizerIsolationTest extends TestCase
                         'GET panel/perfil', 'PUT panel/perfil', 'PUT panel/perfil/contrasena',
                         'GET panel/perfil/logo', 'PUT panel/perfil/logo',
                         'GET panel/competidores', 'POST panel/competidores', 'GET panel/competidores/{athlete}/editar', 'PUT panel/competidores/{athlete}', 'DELETE panel/competidores/{athlete}',
-                        'GET panel/invitaciones', 'POST panel/invitaciones/{invitation}/aceptar', 'POST panel/invitaciones/{invitation}/rechazar'],
+                        'GET panel/invitaciones', 'POST panel/invitaciones/{invitation}/aceptar', 'POST panel/invitaciones/{invitation}/rechazar',
+                        'GET panel/controladores', 'POST panel/controladores', 'PUT panel/controladores/{operator}', 'DELETE panel/controladores/{operator}'],
                     'Ruta del panel fuera de panel/eventos/{event} sin comprobación de propiedad: '.$route->uri(),
                 );
 
