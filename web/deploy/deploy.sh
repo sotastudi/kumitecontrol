@@ -66,8 +66,15 @@ SSH_PORT="${SSH_PORT:-22}"
 [[ "$REMOTE_PATH" == */ ]] || REMOTE_PATH="${REMOTE_PATH}/"
 
 # PHP 8.4 (MAMP) + Node 26 — same paths as scripts/dev-env.sh
+# Prefer Homebrew ARM (/opt/homebrew); fall back to Intel (/usr/local).
 # (do not source that file: its `unalias` exits under set -e)
-export PATH="/Applications/MAMP/bin/php/php8.4.17/bin:/usr/local/opt/node@26/bin:$PATH"
+NODE26_BIN=""
+if [[ -d /opt/homebrew/opt/node@26/bin ]]; then
+  NODE26_BIN="/opt/homebrew/opt/node@26/bin"
+elif [[ -d /usr/local/opt/node@26/bin ]]; then
+  NODE26_BIN="/usr/local/opt/node@26/bin"
+fi
+export PATH="/Applications/MAMP/bin/php/php8.4.17/bin${NODE26_BIN:+:$NODE26_BIN}:$PATH"
 
 if [[ "$SKIP_BUILD" -eq 0 ]]; then
   command -v npm >/dev/null || { echo "npm not found (¿Node 26 instalado?)" >&2; exit 1; }
