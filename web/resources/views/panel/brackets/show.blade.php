@@ -79,6 +79,18 @@
     <div class="alert alert-secondary">Solo hay un inscrito confirmado: la clasificación se resuelve manualmente según el reglamento.</div>
 @endif
 
+@php
+    // Aviso de descanso solo si el cuadro tiene ronda previa (modelo con exentos directos a la ronda 2).
+    $prelimBouts = $bouts->where('is_prelim', true)->where('is_bronze', false)->count();
+    $exemptCount = $participants->count() - 2 * $prelimBouts;
+@endphp
+@if ($prelimBouts > 0)
+    <div class="alert alert-info no-print">
+        <strong>Ronda previa:</strong> {{ $prelimBouts }} {{ $prelimBouts === 1 ? 'combate' : 'combates' }} ({{ 2 * $prelimBouts }} competidores) · {{ $exemptCount }} {{ $exemptCount === 1 ? 'exento' : 'exentos' }}.
+        Los de la previa harán un combate más. Deja 20–30 minutos de descanso antes de la ronda siguiente.
+    </div>
+@endif
+
 @if ($bouts->isNotEmpty())
     <section class="mb-4">
         <h2 class="h5">Cuadro</h2>

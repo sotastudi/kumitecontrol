@@ -1,6 +1,7 @@
 @php
     $editable ??= false;
     $canRecord ??= true;
+    $exemptSlots ??= []; // huecos ocupados por un exento de la ronda previa (desde partials.bracket)
     $names = [
         'a' => $bout->slotA?->competitor->displayName(),
         'b' => $bout->slotB?->competitor->displayName(),
@@ -29,6 +30,9 @@
                     <span class="side-chip {{ $slot === 'a' ? 'side-aka' : 'side-shiro' }}" tabindex="0" role="img" aria-label="{{ $slot === 'a' ? 'AKA (rojo)' : 'SHIRO (blanco)' }}"><span class="side-text">{{ $slot === 'a' ? 'AKA' : 'SHIRO' }}</span></span>
                 @endif
                 {{ $names[$slot] ?? $empty }}
+                @if (in_array($slot, $exemptSlots, true))
+                    <small class="badge text-bg-light border fw-normal">Exento</small>
+                @endif
                 @if ($editable && $registration?->isWithdrawn())
                     <small class="text-danger">({{ $registration->isDisqualified() ? 'descalificado' : 'retirado' }})</small>
                 @endif
