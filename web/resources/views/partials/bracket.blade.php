@@ -26,7 +26,7 @@
 <div class="bracket-wrap pb-3">
     <div class="bracket-grid" style="--rounds: {{ $rounds->count() }}">
         @foreach ($rounds as $round => $roundBouts)
-            <h3 class="bracket-head h6 text-center text-muted" style="grid-column: {{ $loop->iteration }}; grid-row: 1">{{ \App\Tournament\RoundLabel::for($round, $totalRounds) }}</h3>
+            <h3 class="bracket-head h6 text-center text-muted" style="grid-column: {{ $loop->iteration }}; grid-row: 1">{{ \App\Tournament\RoundLabel::for($round, $totalRounds, (bool) $roundBouts->first()?->is_prelim) }}</h3>
             @php $count = $roundBouts->count(); @endphp
             @foreach ($roundBouts->sortBy('position') as $bout)
                 @php

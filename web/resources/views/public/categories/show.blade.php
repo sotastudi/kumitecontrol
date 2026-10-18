@@ -33,7 +33,7 @@
             @foreach ($bouts->whereNotNull('number')->sortBy('number') as $bout)
                 <tr>
                     <td>{{ $bout->number }}</td>
-                    <td>{{ $bout->is_bronze ? 'Bronce' : \App\Tournament\RoundLabel::for($bout->round, $totalRounds) }}</td>
+                    <td>{{ $bout->is_bronze ? 'Bronce' : \App\Tournament\RoundLabel::for($bout->round, $totalRounds, $bout->is_prelim) }}</td>
                     <td>
                         @foreach ([$bout->slotA, $bout->slotB] as $slot)
                             {{ $slot?->competitor->displayName() ?? 'Por determinar' }}@if ($slot?->competitor->club) <small class="text-muted">({{ $slot->competitor->club }})</small>@endif @unless ($loop->last) — @endunless

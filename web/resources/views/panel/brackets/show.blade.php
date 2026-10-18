@@ -115,7 +115,7 @@
                 @foreach ($bouts->whereNotNull('number')->sortBy('number') as $bout)
                     <tr>
                         <td>{{ $bout->number }}</td>
-                        <td>{{ $bout->is_bronze ? 'Bronce' : \App\Tournament\RoundLabel::for($bout->round, $totalRounds) }}</td>
+                        <td>{{ $bout->is_bronze ? 'Bronce' : \App\Tournament\RoundLabel::for($bout->round, $totalRounds, $bout->is_prelim) }}</td>
                         <td>{{ $bout->slotA?->competitor->displayName() ?? 'Por determinar' }} — {{ $bout->slotB?->competitor->displayName() ?? 'Por determinar' }}</td>
                         <td>{{ $bout->isCompleted() ? 'Finalizado' : ($bout->isReady() ? 'Listo' : 'Pendiente') }}</td>
                     </tr>

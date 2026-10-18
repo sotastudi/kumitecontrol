@@ -9,7 +9,7 @@
 <div class="d-flex align-items-center flex-wrap gap-2 mb-3 tatami-bout-header">
     <span class="bout-number-tag">Combate {{ $bout->number }}</span>
     <span class="fw-semibold">{{ $bout->category->name }}</span>
-    <span class="text-muted">· {{ $bout->is_bronze ? 'Bronce' : \App\Tournament\RoundLabel::for($bout->round, $totalRounds) }}</span>
+    <span class="text-muted">· {{ $bout->is_bronze ? 'Bronce' : \App\Tournament\RoundLabel::for($bout->round, $totalRounds, $bout->is_prelim) }}</span>
 </div>
 @if ($locked)
     <div class="alert alert-success d-flex justify-content-between align-items-center flex-wrap gap-2 py-2 score-lock-banner" role="status">

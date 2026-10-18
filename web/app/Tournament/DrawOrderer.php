@@ -77,18 +77,9 @@ final class DrawOrderer
         while ($size < $count) {
             $size *= 2;
         }
-        $order = [1];
-        for ($n = 1; $n < $size; $n *= 2) {
-            $next = [];
-            foreach ($order as $seed) {
-                $next[] = $seed;
-                $next[] = 2 * $n + 1 - $seed;
-            }
-            $order = $next;
-        }
 
         $spread = [];
-        foreach ($order as $seed) {
+        foreach (BracketSeeding::order($size) as $seed) {
             if ($seed <= $count) {
                 $spread[] = $pairs[$seed - 1];
             }

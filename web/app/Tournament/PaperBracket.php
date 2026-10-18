@@ -144,7 +144,7 @@ final class PaperBracket
     /** @param  Collection<string,Bout>  $byKey */
     private function card(Bout $bout, Collection $byKey, float $x, float $y, float $w, float $h, int $totalRounds, bool $summaryLeaf): array
     {
-        $head = ($bout->number ? 'Combate '.$bout->number : 'Pase').' · '.RoundLabel::for($bout->round, $totalRounds);
+        $head = ($bout->number ? 'Combate '.$bout->number : 'Pase').' · '.RoundLabel::for($bout->round, $totalRounds, $bout->is_prelim);
         $rows = [];
 
         foreach (['a' => 'aka', 'b' => 'shiro'] as $slot => $side) {
