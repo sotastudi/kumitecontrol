@@ -4,6 +4,7 @@ Thumbs.db
 Desktop.ini
 
 /assets/*
+/demo/*
 
 # Editores / IDE
 .idea/
