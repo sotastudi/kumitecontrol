@@ -12,7 +12,7 @@ final class BracketAdjuster
     public function __construct(private readonly BracketAdvancer $advancer) {}
 
     /**
-     * Intercambia dos participantes de primera ronda. La estructura de pases no cambia.
+     * Intercambia dos participantes de la primera ronda (o exentos de la ronda 2). La estructura del cuadro no cambia.
      *
      * @throws TournamentException
      */
@@ -25,7 +25,8 @@ final class BracketAdjuster
             throw new TournamentException('Hay resultados o bajas registradas: el cuadro ya no se puede ajustar.');
         }
 
-        $bouts = $category->bouts()->where('round', 1)->get();
+        // Rondas 1 y 2: con ronda previa, los exentos están directamente en la ronda 2.
+        $bouts = $category->bouts()->where('round', '<=', 2)->where('is_bronze', false)->orderBy('round')->orderBy('position')->get();
         [$boutA, $slotA] = $this->locate($bouts, $registrationA);
         [$boutB, $slotB] = $this->locate($bouts, $registrationB);
 

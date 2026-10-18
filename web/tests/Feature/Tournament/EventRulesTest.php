@@ -351,24 +351,24 @@ class EventRulesTest extends TestCase
     public function test_unfought_bye_recipient_withdrawn_before_the_final_is_dropped_with_no_place(): void
     {
         $category = $this->generated(3);
-        $bye = $category->bouts()->where('round', 1)->get()->first(fn ($b) => $b->isBye());
+        $exempt = $this->bout($category, 2, 1)->slot_a_id; // exento: espera en la final
         $real = $category->bouts()->where('round', 1)->get()->first(fn ($b) => ! $b->isBye());
         $this->win($category, 1, $real->position, $real->slot_a_id);
-        $this->withdraw($bye->winner_id, WithdrawalType::Withdrawn);
+        $this->withdraw($exempt, WithdrawalType::Withdrawn);
         $this->rules($category, ['unfought_withdrawal_rule' => 'no_place']);
 
-        $this->assertNotContains($bye->winner_id, array_column($this->podium($category), 1));
+        $this->assertNotContains($exempt, array_column($this->podium($category), 1));
         $this->assertContains(2, $this->vacant($category));
         $this->rules($category, ['unfought_withdrawal_rule' => 'keep_place']);
-        $this->assertContains($bye->winner_id, array_column($this->podium($category), 1));
+        $this->assertContains($exempt, array_column($this->podium($category), 1));
     }
 
     public function test_withdrawing_a_bye_recipient_before_results_locks_regeneration_and_swaps(): void
     {
         $category = $this->generated(3);
         $this->rules($category, ['withdrawal_before_results_rule' => 'allow_walkover']);
-        $bye = $category->bouts()->where('round', 1)->get()->first(fn ($b) => $b->isBye());
-        $this->withdraw($bye->winner_id, WithdrawalType::Withdrawn);
+        $exempt = $this->bout($category, 2, 1)->slot_a_id; // exento: espera en la final
+        $this->withdraw($exempt, WithdrawalType::Withdrawn);
         $category->refresh();
 
         $this->assertFalse($category->hasResults());
@@ -393,8 +393,8 @@ class EventRulesTest extends TestCase
 
         $this->actingAs($owner)->get($url)->assertSee('Regenerar cuadro')->assertSee('Intercambiar participantes');
 
-        $bye = $category->bouts()->where('round', 1)->get()->first(fn ($b) => $b->isBye());
-        $this->withdraw($bye->winner_id, WithdrawalType::Withdrawn);
+        $exempt = $this->bout($category, 2, 1)->slot_a_id; // exento: espera en la final
+        $this->withdraw($exempt, WithdrawalType::Withdrawn);
 
         $this->actingAs($owner)->get($url)->assertOk()->assertDontSee('Regenerar cuadro')->assertDontSee('Intercambiar participantes');
     }
@@ -417,13 +417,13 @@ class EventRulesTest extends TestCase
         $this->assertFalse(Registration::find($target)->isWithdrawn());
     }
 
-    /** n=3 con AllowWalkover y el receptor del pase de baja antes de cualquier resultado: bloqueado sin resultados. */
+    /** n=3 con AllowWalkover y el exento de baja antes de cualquier resultado: bloqueado sin resultados. */
     private function lockedWithoutResults(): Category
     {
         $category = $this->generated(3);
         $this->rules($category, ['withdrawal_before_results_rule' => 'allow_walkover']);
-        $bye = $category->bouts()->where('round', 1)->get()->first(fn ($b) => $b->isBye());
-        $this->withdraw($bye->winner_id, WithdrawalType::Withdrawn);
+        $exempt = $this->bout($category, 2, 1)->slot_a_id; // exento: espera en la final
+        $this->withdraw($exempt, WithdrawalType::Withdrawn);
         $this->assertFalse($category->hasResults());
 
         return $category->refresh();

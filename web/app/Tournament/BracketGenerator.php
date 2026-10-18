@@ -69,27 +69,18 @@ final class BracketGenerator
         }
 
         if ($shuffler) {
-            // Orden dado (tests): con un número impar el primero queda con el pase y el resto se empareja en orden.
-            $ordered = $shuffler($ids)->values()->all();
-            $pairs = [];
-            if (count($ordered) % 2 === 1) {
-                $pairs[] = [array_shift($ordered), null];
-            }
-            foreach (array_chunk($ordered, 2) as $chunk) {
-                $pairs[] = [$chunk[0], $chunk[1]];
-            }
+            // Orden dado (tests) = mérito de mejor a peor: se colocan en los huecos igual que el sorteo.
+            ['slots' => $slots, 'prelim' => $prelim] = $this->orderer->layout($shuffler($ids)->values()->all());
             $warnings = [];
         } else {
-            ['slots' => $slots, 'warnings' => $warnings] = $this->orderer->order($registrations, $category->effectiveDrawCriteria());
-            // Provisional: cada exento entra como un pase de 1.ª ronda.
-            $pairs = array_map(fn (array $slot) => [$slot[0], $slot[1] ?? null], $slots);
+            ['slots' => $slots, 'prelim' => $prelim, 'warnings' => $warnings] = $this->orderer->order($registrations, $category->effectiveDrawCriteria());
         }
 
-        DB::transaction(function () use ($category, $pairs, $warnings) {
+        DB::transaction(function () use ($category, $slots, $prelim, $warnings) {
             $category->bouts()->update(['next_bout_id' => null, 'loser_next_bout_id' => null]);
             $category->bouts()->delete();
 
-            $this->build($category, $pairs);
+            $this->build($category, $slots, $prelim);
 
             $category->forceFill(['bracket_generated_at' => now(), 'draw_warnings' => $warnings ?: null])->save();
             $this->advancer->settle($category);
@@ -97,42 +88,61 @@ final class BracketGenerator
     }
 
     /**
-     * Cuadro de eliminación directa donde en cada ronda todos combaten salvo, como mucho, uno (el último combate de la
-     * ronda recibe un pase si el número de participantes es impar). Ronda 1 = las parejas del sorteo; cada ronda siguiente
-     * empareja los ganadores de dos combates consecutivos.
+     * Cuadro de eliminación directa. Sin previa, la ronda 1 son las parejas del sorteo. Con previa, la ronda 1 son sus
+     * combates (`is_prelim`, numerados primero) y la ronda 2 tiene m/2 combates cuyos huecos ocupan directamente los
+     * exentos o esperan al ganador de una previa. Cada ronda siguiente empareja los ganadores de dos combates consecutivos.
      *
-     * @param  list<array{0:int,1:?int}>  $pairs
+     * @param  list<list<int>>  $slots  ver DrawOrderer::layout()
      */
-    private function build(Category $category, array $pairs): void
+    private function build(Category $category, array $slots, bool $prelim): void
     {
-        $counts = [count($pairs)];
-        while (end($counts) > 1) {
-            $counts[] = intdiv(end($counts) + 1, 2);
-        }
-        $rounds = count($counts);
-
         $number = 0;
         /** @var array<int,array<int,Bout>> $grid */
         $grid = [];
         $bronze = null;
 
-        for ($round = 1; $round <= $rounds; $round++) {
-            // El combate por el bronce se disputa antes que la final.
-            if ($round === $rounds && $rounds >= 2 && $category->bronze_rule === BronzeRule::BronzeMatch) {
-                $semiByes = count(array_filter($grid[$round - 1], fn (Bout $b) => $b->isBye()));
-                $bronze = $this->create($category, ['round' => $round, 'position' => 1, 'is_bronze' => true, 'required_participants' => 2 - $semiByes], $number);
+        // Primera ronda: la previa (las parejas en orden de hueco) o, sin previa, todas las parejas.
+        $first = $prelim ? array_values(array_filter($slots, fn (array $slot) => count($slot) === 2)) : $slots;
+        foreach ($first as $i => [$slotA, $slotB]) {
+            $grid[1][$i + 1] = $this->create($category, [
+                'round' => 1, 'position' => $i + 1, 'is_prelim' => $prelim,
+                'slot_a_id' => $slotA, 'slot_b_id' => $slotB, 'required_participants' => 2,
+            ], $number);
+        }
+
+        $count = $prelim ? intdiv(count($slots), 2) : intdiv(count($first), 2);
+        $rounds = 1;
+        $counts = [];
+        while ($count >= 1) {
+            $rounds++;
+            $counts[$rounds] = $count;
+            $count = intdiv($count, 2);
+        }
+
+        for ($round = 2; $round <= $rounds; $round++) {
+            // El combate por el bronce se disputa antes que la final; sus participantes son los perdedores de la ronda anterior.
+            if ($round === $rounds && $category->bronze_rule === BronzeRule::BronzeMatch) {
+                $bronze = $this->create($category, ['round' => $round, 'position' => 1, 'is_bronze' => true, 'required_participants' => min(2, count($grid[$round - 1]))], $number);
             }
 
-            for ($p = 1; $p <= $counts[$round - 1]; $p++) {
-                if ($round === 1) {
-                    [$slotA, $slotB] = $pairs[$p - 1];
-                    $attributes = ['round' => 1, 'position' => $p, 'slot_a_id' => $slotA, 'slot_b_id' => $slotB, 'required_participants' => $slotB ? 2 : 1];
-                } else {
-                    $feeders = min(2, $counts[$round - 2] - 2 * ($p - 1));
-                    $attributes = ['round' => $round, 'position' => $p, 'required_participants' => $feeders];
+            for ($p = 1; $p <= $counts[$round]; $p++) {
+                $attributes = ['round' => $round, 'position' => $p, 'required_participants' => 2];
+                if ($prelim && $round === 2) {
+                    $attributes['slot_a_id'] = count($slots[2 * $p - 2]) === 1 ? $slots[2 * $p - 2][0] : null;
+                    $attributes['slot_b_id'] = count($slots[2 * $p - 1]) === 1 ? $slots[2 * $p - 1][0] : null;
                 }
-
                 $grid[$round][$p] = $this->create($category, $attributes, $number);
+            }
+        }
+
+        // Enlaces: cada previa con el hueco que alimenta (impar ⇒ a, par ⇒ b); el resto, por posición.
+        $feeds = [];
+        if ($prelim) {
+            $k = 0;
+            foreach ($slots as $i => $slot) {
+                if (count($slot) === 2) {
+                    $feeds[++$k] = [$grid[2][intdiv($i, 2) + 1], $i % 2 === 0 ? 'a' : 'b'];
+                }
             }
         }
 
@@ -141,8 +151,9 @@ final class BracketGenerator
                 continue;
             }
             foreach ($bouts as $p => $bout) {
-                $bout->next_bout_id = $grid[$round + 1][intdiv($p + 1, 2)]->id;
-                $bout->next_slot = $p % 2 === 1 ? 'a' : 'b';
+                [$target, $slot] = $prelim && $round === 1 ? $feeds[$p] : [$grid[$round + 1][intdiv($p + 1, 2)], $p % 2 === 1 ? 'a' : 'b'];
+                $bout->next_bout_id = $target->id;
+                $bout->next_slot = $slot;
                 if ($bronze && $round === $rounds - 1) {
                     $bout->loser_next_bout_id = $bronze->id;
                     $bout->loser_next_slot = $p === 1 ? 'a' : 'b';

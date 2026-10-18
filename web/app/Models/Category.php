@@ -136,7 +136,9 @@ class Category extends Model
             return false;
         }
 
-        $inBracket = $bouts->where('round', 1)->flatMap(fn (Bout $b) => [$b->slot_a_id, $b->slot_b_id])->filter()->sort()->values()->all();
+        // Rondas 1 y 2: con ronda previa, los exentos están directamente en la ronda 2.
+        $inBracket = $bouts->where('round', '<=', 2)->where('is_bronze', false)->flatMap(fn (Bout $b) => [$b->slot_a_id, $b->slot_b_id])
+            ->filter()->unique()->sort()->values()->all();
         $confirmed = $this->registrations()->where('status', 'confirmed')->orderBy('id')->pluck('id')->all();
         $expectsBronze = $this->bronze_rule === BronzeRule::BronzeMatch && $bouts->max('round') >= 2;
 

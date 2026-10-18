@@ -29,10 +29,10 @@ class BracketPanelTest extends TestCase
         [$user, $event, $category] = $this->owned(5);
 
         $this->actingAs($user)->post(route('panel.brackets.store', [$event, $category]))->assertRedirect();
-        $this->assertSame(8, $category->bouts()->count());
+        $this->assertSame(5, $category->bouts()->count()); // previa, 2 semifinales, final y bronce
 
         $this->actingAs($user)->post(route('panel.brackets.store', [$event, $category]))->assertRedirect();
-        $this->assertSame(8, $category->bouts()->count());
+        $this->assertSame(5, $category->bouts()->count());
         $this->actingAs($user)->get(route('panel.brackets.show', [$event, $category]))->assertOk()->assertSee('Semifinales');
     }
 

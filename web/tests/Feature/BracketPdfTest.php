@@ -90,23 +90,24 @@ class BracketPdfTest extends TestCase
 
     public function test_big_brackets_are_split_in_blocks_of_16_plus_a_final_sheet_with_bronze_and_podium(): void
     {
-        [$owner, $event, $category] = $this->category(75);
+        // Potencia de 2 (sin ronda previa): la colocación de la previa en el PDF llega con la vista del cuadro.
+        [$owner, $event, $category] = $this->category(64);
         $pages = app(PaperBracket::class)->pages($category);
 
-        // 75 participantes → 38 combates de primera ronda → bloques de 16, 16 y 6 + la hoja final.
-        $this->assertCount(4, $pages);
+        // 64 participantes → 32 combates de primera ronda → bloques de 16 y 16 + la hoja final.
+        $this->assertCount(3, $pages);
         $firstRoundNames = [];
-        foreach (array_slice($pages, 0, 3) as $page) {
+        foreach (array_slice($pages, 0, 2) as $page) {
             $names = collect($page['cards'])->filter(fn ($c) => str_contains($c['head'], 'Ronda 1'))->count();
             $firstRoundNames[] = $names;
         }
-        $this->assertSame([16, 16, 6], $firstRoundNames);
-        $this->assertTrue(collect($pages[3]['cards'])->every(fn ($c) => ! str_contains($c['head'], 'Ronda 1')), 'la hoja final no repite la primera ronda');
-        $this->assertNotNull($pages[3]['extras']['bronze'] ?? null);
+        $this->assertSame([16, 16], $firstRoundNames);
+        $this->assertTrue(collect($pages[2]['cards'])->every(fn ($c) => ! str_contains($c['head'], 'Ronda 1')), 'la hoja final no repite la primera ronda');
+        $this->assertNotNull($pages[2]['extras']['bronze'] ?? null);
         $this->assertSame([], $pages[0]['extras'], 'bronce y podio solo en la hoja final');
 
         $pdf = $this->actingAs($owner)->get(route('panel.brackets.pdf', [$event, $category]))->assertOk()->getContent();
-        $this->assertSame(4, preg_match_all('#/Type\s*/Page\b#', $pdf));
+        $this->assertSame(3, preg_match_all('#/Type\s*/Page\b#', $pdf));
     }
 
     public function test_the_pdf_button_uses_the_download_icon_and_only_the_text_pdf(): void

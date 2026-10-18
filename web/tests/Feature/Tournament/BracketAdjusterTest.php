@@ -25,16 +25,16 @@ class BracketAdjusterTest extends TestCase
         $this->assertSame($a, $this->bout($category, 1, 2)->slot_a_id);
     }
 
-    public function test_swap_updates_the_participant_that_advances_by_a_pase(): void
+    public function test_swap_exchanges_the_exempt_with_a_prelim_fighter(): void
     {
         $category = $this->generated(3);
-        $withPase = $this->bout($category, 1, 1);
-        $other = $this->bout($category, 1, 2);
-        $this->assertSame($withPase->slot_a_id, $this->bout($category, 2, 1)->slot_a_id);
+        $prelim = $this->bout($category, 1, 1);
+        $exempt = $this->bout($category, 2, 1)->slot_a_id;
 
-        app(BracketAdjuster::class)->swap($category, $withPase->slot_a_id, $other->slot_a_id);
+        app(BracketAdjuster::class)->swap($category, $exempt, $prelim->slot_a_id);
 
-        $this->assertSame($other->slot_a_id, $this->bout($category, 2, 1)->slot_a_id);
+        $this->assertSame($prelim->slot_a_id, $this->bout($category, 2, 1)->slot_a_id);
+        $this->assertSame($exempt, $this->bout($category, 1, 1)->slot_a_id);
     }
 
     public function test_swap_is_refused_after_a_result_and_for_unknown_participants(): void

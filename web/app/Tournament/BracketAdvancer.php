@@ -51,10 +51,21 @@ final class BracketAdvancer
         $this->complete($bout, $winnerId);
     }
 
-    /** Vuelve al estado inicial de la primera ronda (solo válido sin resultados reales) y re-resuelve los pases. */
+    /**
+     * Vuelve al estado recién generado (solo válido sin resultados reales) y re-resuelve los pases: vacía los huecos que
+     * llena otro combate (ganador o perdedor) y conserva los exentos colocados directamente en la ronda 2.
+     */
     public function reset(Category $category): void
     {
-        $category->bouts()->where('round', '>', 1)->update(['slot_a_id' => null, 'slot_b_id' => null]);
+        $bouts = $category->bouts()->get();
+        foreach (['a', 'b'] as $slot) {
+            $fed = $bouts->filter(fn (Bout $b) => $b->next_slot === $slot)->pluck('next_bout_id')
+                ->merge($bouts->filter(fn (Bout $b) => $b->loser_next_slot === $slot)->pluck('loser_next_bout_id'))
+                ->filter()->unique()->values();
+            if ($fed->isNotEmpty()) {
+                $category->bouts()->where('round', '>', 1)->whereIn('id', $fed)->update(["slot_{$slot}_id" => null]);
+            }
+        }
         $category->bouts()->update(['winner_id' => null]);
 
         $this->settle($category);
