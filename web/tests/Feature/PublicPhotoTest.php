@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Enums\ClubStatus;
 use App\Models\Category;
+use App\Enums\EventStatus;
 use App\Models\Competitor;
+use App\Models\Registration;
 use App\Models\Event;
 use App\Models\EventClub;
 use App\Models\User;
@@ -180,7 +182,7 @@ class PublicPhotoTest extends TestCase
     private function setUpPhoto(array $eventAttrs = [], array $competitorAttrs = [], bool $withFile = true): array
     {
         Storage::fake('local');
-        $event = Event::factory()->create(array_merge(['show_photos_publicly' => true, 'starts_on' => now()->addMonth()], $eventAttrs));
+        $event = Event::factory()->create(array_merge(['show_photos_publicly' => true, 'starts_on' => now()->addMonth(), 'is_public' => true, 'status' => EventStatus::RegistrationOpen], $eventAttrs));
         $competitor = Competitor::factory()->for($event)->create(array_merge([
             'birth_date' => now()->subYears(30)->format('Y-m-d'),
             'photo_path' => 'photos/x.jpg',
@@ -189,6 +191,11 @@ class PublicPhotoTest extends TestCase
         if ($withFile) {
             Storage::disk('local')->put('photos/x.jpg', 'fake-image');
         }
+        // Por defecto, inscripción confirmada en una categoría publicada (lo único que ve un visitante).
+        Registration::factory()->confirmed()->create([
+            'category_id' => Category::factory()->for($event)->create(['is_published' => true])->id,
+            'competitor_id' => $competitor->id,
+        ]);
 
         return [$event, $competitor];
     }
@@ -283,5 +290,71 @@ class PublicPhotoTest extends TestCase
 
         $event->update(['show_photos_publicly' => false]);
         $this->assertSame('', trim(Blade::render($tpl, ['c' => $c, 'event' => $event->fresh()])));
+    }
+
+    /** Datos de un competidor con foto pública cuya única inscripción es la indicada. */
+    private function photoWithRegistration(string $status, bool $published, array $eventAttrs = []): array
+    {
+        [$event, $c] = $this->setUpPhoto($eventAttrs);
+        $c->registrations()->delete();
+        $registration = Registration::factory()->create([
+            'category_id' => Category::factory()->for($event)->create(['is_published' => $published])->id,
+            'competitor_id' => $c->id,
+            'status' => $status,
+        ]);
+
+        return [$event, $c, $registration];
+    }
+
+    private function operatorOf(Event $event): User
+    {
+        $operator = User::factory()->create();
+        $event->operators()->create(['user_id' => $operator->id, 'tatami' => 1]);
+
+        return $operator;
+    }
+
+    public function test_unlisted_event_with_old_session_code_is_404_for_visitor_but_ok_for_owner_and_operator(): void
+    {
+        [$event, $c] = $this->setUpPhoto(['status' => EventStatus::Draft, 'is_public' => false]);
+        $url = route('public.competitors.photo', [$event, $c]);
+
+        $this->withCode($event)->get($url)->assertNotFound();
+        $this->actingAs($event->user)->get($url)->assertOk();
+        $this->actingAs($this->operatorOf($event))->get($url)->assertOk();
+    }
+
+    public function test_pending_and_cancelled_registrations_are_404_for_visitor(): void
+    {
+        foreach (['pending', 'cancelled'] as $status) {
+            [$event, $c] = $this->photoWithRegistration($status, true);
+
+            $this->withCode($event)->get(route('public.competitors.photo', [$event, $c]))->assertNotFound();
+        }
+    }
+
+    public function test_competitor_without_registration_is_404_for_visitor(): void
+    {
+        [$event, $c] = $this->setUpPhoto();
+        $c->registrations()->delete();
+
+        $this->withCode($event)->get(route('public.competitors.photo', [$event, $c]))->assertNotFound();
+    }
+
+    public function test_unpublished_category_is_404_for_visitor_but_ok_for_owner_and_operator(): void
+    {
+        [$event, $c] = $this->photoWithRegistration('confirmed', false);
+        $url = route('public.competitors.photo', [$event, $c]);
+
+        $this->withCode($event)->get($url)->assertNotFound();
+        $this->actingAs($event->user)->get($url)->assertOk();
+        $this->actingAs($this->operatorOf($event))->get($url)->assertOk();
+    }
+
+    public function test_confirmed_in_published_category_is_ok_for_visitor(): void
+    {
+        [$event, $c] = $this->photoWithRegistration('confirmed', true);
+
+        $this->withCode($event)->get(route('public.competitors.photo', [$event, $c]))->assertOk();
     }
 }

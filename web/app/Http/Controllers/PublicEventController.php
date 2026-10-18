@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\RegistrationStatus;
 use App\Models\Competitor;
 use App\Models\Event;
 use App\Models\EventClub;
@@ -101,11 +102,26 @@ class PublicEventController extends Controller
         return Storage::disk('local')->response($club->user->logo_path, null, ['X-Content-Type-Options' => 'nosniff', 'Cache-Control' => $event->isListed() ? 'public, max-age=3600' : 'private, max-age=600']);
     }
 
-    /** Foto de un inscrito: solo si la regla de publicación se cumple y el fichero existe; caché privada (hay código de acceso). */
-    public function competitorPhoto(Event $event, Competitor $competitor): StreamedResponse
+    /** Foto de un inscrito: solo si la regla de publicación se cumple, el fichero existe y quien la pide puede ver a ese competidor; caché privada (hay código de acceso). */
+    public function competitorPhoto(Request $request, Event $event, Competitor $competitor): StreamedResponse
     {
         abort_unless($competitor->publicPhotoUrl($event) !== null && Storage::disk('local')->exists($competitor->photo_path), 404);
+        abort_unless($this->mayViewCompetitor($request, $event, $competitor), 404);
 
         return Storage::disk('local')->response($competitor->photo_path, null, ['X-Content-Type-Options' => 'nosniff', 'Cache-Control' => 'private, max-age=600']);
+    }
+
+    /** Propietario y controladores de tatami siempre; el resto solo en eventos listados y para inscritos confirmados de categorías publicadas. */
+    private function mayViewCompetitor(Request $request, Event $event, Competitor $competitor): bool
+    {
+        $user = $request->user();
+        if ($user && ($user->can('manage', $event) || $event->operators()->where('user_id', $user->id)->exists())) {
+            return true;
+        }
+
+        return $event->isListed() && $competitor->registrations()
+            ->where('status', RegistrationStatus::Confirmed)
+            ->whereHas('category', fn ($q) => $q->where('event_id', $event->id)->where('is_published', true))
+            ->exists();
     }
 }
