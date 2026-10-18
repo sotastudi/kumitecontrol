@@ -37,7 +37,18 @@
     </div>
 </div>
 @if ($bibsProblem && $event->status->value !== 'draft')
-    <div class="alert alert-warning no-print">{{ $bibsProblem }} <a href="{{ route('panel.registrations.index', ['event' => $event, 'status' => 'pending']) }}" class="alert-link">Ver pendientes</a></div>
+    <div class="alert alert-warning no-print d-flex align-items-center flex-wrap gap-2">
+        <span>{{ $bibsProblem }}</span>
+        @if ($pendingCount > 0)
+            <a href="{{ route('panel.registrations.index', ['event' => $event, 'status' => 'pending']) }}" class="alert-link">Ver pendientes</a>
+        @elseif ($event->status === \App\Enums\EventStatus::RegistrationOpen)
+            <form method="POST" action="{{ route('panel.events.close-registrations', $event) }}"
+                  onsubmit="return confirm('Se cerrarán las inscripciones: los clubes ya no podrán inscribir. ¿Continuar?')">
+                @csrf
+                <button type="submit" class="btn btn-warning btn-sm">Cerrar inscripciones</button>
+            </form>
+        @endif
+    </div>
 @endif
 @if ($event->description)<p style="white-space: pre-line">{{ $event->description }}</p>@endif
 

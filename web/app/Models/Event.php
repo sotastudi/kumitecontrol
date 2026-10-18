@@ -7,6 +7,7 @@ use App\Enums\DisqualifiedPodiumRule;
 use App\Enums\DrawCriteria;
 use App\Enums\EventStatus;
 use App\Enums\PreResultsWithdrawalRule;
+use App\Enums\RegistrationStatus;
 use App\Enums\UnfoughtWithdrawalRule;
 use Database\Factories\EventFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -110,6 +111,12 @@ class Event extends Model
     public function registrations(): HasManyThrough
     {
         return $this->hasManyThrough(Registration::class, Category::class);
+    }
+
+    /** Inscripciones del evento aún sin confirmar ni cancelar. */
+    public function pendingRegistrationsCount(): int
+    {
+        return $this->registrations()->where('registrations.status', RegistrationStatus::Pending->value)->count();
     }
 
     public function scopeListed(Builder $query): void

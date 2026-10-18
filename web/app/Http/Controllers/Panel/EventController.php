@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Panel;
 
+use App\Enums\EventStatus;
 use App\Enums\RegistrationStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\EventRequest;
@@ -66,6 +67,7 @@ class EventController extends Controller
             ])]),
             'tatamis' => $board->for($event),
             'bibsProblem' => $bibs->blockingProblem($event),
+            'pendingCount' => $event->pendingRegistrationsCount(),
         ]);
     }
 
@@ -129,6 +131,22 @@ class EventController extends Controller
         $event->forceFill(['access_code' => Event::newAccessCode()])->save();
 
         return back()->with('status', 'Código de acceso regenerado: el anterior ya no funciona.');
+    }
+
+    public function closeRegistrations(Event $event): RedirectResponse
+    {
+        if ($event->status !== EventStatus::RegistrationOpen) {
+            return back()->withErrors(['error' => 'Solo se pueden cerrar las inscripciones de un evento con inscripciones abiertas.']);
+        }
+
+        $pending = $event->pendingRegistrationsCount();
+        if ($pending > 0) {
+            return back()->withErrors(['error' => 'Quedan '.$pending.($pending === 1 ? ' inscripción pendiente' : ' inscripciones pendientes').': confírmalas o cancélalas antes de cerrar las inscripciones.']);
+        }
+
+        $event->update(['status' => EventStatus::RegistrationClosed]);
+
+        return back()->with('status', 'Inscripciones cerradas.');
     }
 
     public function assignBibs(Event $event, BibNumberAssigner $bibs): RedirectResponse

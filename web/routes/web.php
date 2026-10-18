@@ -97,6 +97,7 @@ Route::middleware('auth')->prefix('panel')->name('panel.')->group(function () {
     Route::middleware('can:manage,event')->scopeBindings()->prefix('eventos/{event}')->group(function () {
         Route::get('/', [EventController::class, 'show'])->name('events.show');
         Route::post('dorsales', [EventController::class, 'assignBibs'])->name('events.bibs');
+        Route::post('cerrar-inscripciones', [EventController::class, 'closeRegistrations'])->name('events.close-registrations');
         Route::post('codigo-acceso', [EventController::class, 'regenerateAccessCode'])->name('events.access-code');
         Route::post('controladores-tatami', [TatamiOperatorController::class, 'store'])->name('operators.store');
         Route::delete('controladores-tatami/{operator}', [TatamiOperatorController::class, 'destroy'])->name('operators.destroy');

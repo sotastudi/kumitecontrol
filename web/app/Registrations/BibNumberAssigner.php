@@ -24,7 +24,7 @@ final class BibNumberAssigner
             return 'Cierra las inscripciones (estado «Inscripciones cerradas» o «En curso») antes de asignar los números de competidor.';
         }
 
-        $pending = $event->registrations()->where('registrations.status', RegistrationStatus::Pending->value)->count();
+        $pending = $event->pendingRegistrationsCount();
         if ($pending > 0) {
             return 'Quedan '.$pending.($pending === 1 ? ' inscripción pendiente' : ' inscripciones pendientes').': confírmalas o cancélalas antes de asignar los números de competidor.';
         }
