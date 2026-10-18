@@ -225,4 +225,28 @@ class TestDataTest extends TestCase
         $this->assertMatchesRegularExpression('/name="participants" value="20"/', $html);
         $this->assertMatchesRegularExpression('/name="clubs" value="8"/', $html);
     }
+
+    public function test_demo_clubs_with_a_wrong_logo_get_the_right_one_but_real_logos_are_kept(): void
+    {
+        Storage::fake('local');
+        [$user, $event] = $this->testEvent();
+        $category = Category::factory()->for($event)->create();
+        $this->actingAs($user)->post(route('panel.test.registrations', $event), ['category_id' => $category->id, 'participants' => 2, 'clubs' => 2]);
+
+        $konoha = \App\Models\User::where('name', 'Club Dojo Konoha Budo')->firstOrFail();
+        Storage::disk('local')->put('club-logos/viejo.jpg', 'logo equivocado');
+        $konoha->forceFill(['logo_path' => 'club-logos/viejo.jpg'])->save();
+
+        $this->post(route('panel.test.registrations', $event), ['category_id' => $category->id, 'participants' => 1, 'clubs' => 2]);
+
+        $this->assertSame(md5_file((new DemoCatalog)->clubLogoPath('Club Dojo Konoha Budo')), md5(Storage::disk('local')->get($konoha->fresh()->logo_path)));
+        $this->assertFalse(Storage::disk('local')->exists('club-logos/viejo.jpg'));
+
+        // Una cuenta que no es de demostración conserva su logo.
+        $real = \App\Models\User::factory()->create(['name' => 'Gimnasio Piratas del Sol', 'role' => 'club']);
+        Storage::disk('local')->put('club-logos/real.jpg', 'logo real');
+        $real->forceFill(['logo_path' => 'club-logos/real.jpg'])->save();
+        $this->post(route('panel.test.registrations', $event), ['category_id' => $category->id, 'participants' => 1, 'clubs' => 3]);
+        $this->assertSame('club-logos/real.jpg', $real->fresh()->logo_path);
+    }
 }

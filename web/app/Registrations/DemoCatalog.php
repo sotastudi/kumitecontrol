@@ -7,7 +7,7 @@ use App\Models\Competitor;
 /** Datos de demostración versionados (database/demo): clubes, nombres del listado Manga, avatares, logos y cartel. */
 final class DemoCatalog
 {
-    /** @var array{clubs:list<string>,aliases:array<string,string>,categories:array<string,list<array<string,string>>>}|null */
+    /** @var array{clubs:list<string>,logos:array<string,string>,aliases:array<string,string>,categories:array<string,list<array<string,string>>>}|null */
     private ?array $data = null;
 
     /** @var array<string,list<string>> */
@@ -19,13 +19,12 @@ final class DemoCatalog
         return $this->data()['clubs'];
     }
 
-    /** Ruta absoluta del logo del club (club/NN.jpg, NN = posición en el listado), o null si no es del catálogo. */
+    /** Ruta absoluta del logo del club (fichero indicado en `logos` del catálogo), o null si no es del catálogo. */
     public function clubLogoPath(string $club): ?string
     {
-        $canonical = $this->canonicalClub($club);
-        $position = $canonical === null ? false : array_search($canonical, $this->clubs(), true);
+        $file = $this->data()['logos'][$this->canonicalClub($club) ?? ''] ?? null;
 
-        return $position === false ? null : $this->path(sprintf('club/%02d.jpg', $position + 1));
+        return $file === null ? null : $this->path('club/'.$file);
     }
 
     /** Nombre oficial del club (acepta los alias abreviados de las tablas), o null si no es del catálogo. */

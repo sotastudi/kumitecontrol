@@ -32,4 +32,18 @@ class DemoCatalogTest extends TestCase
         $this->assertSame($c->avatarPath('juvenil-masculino', 0), $c->avatarPath('juvenil-masculino', 20));
         $this->assertFileExists($c->posterPath());
     }
+
+    public function test_each_club_gets_its_own_logo_file(): void
+    {
+        $c = new DemoCatalog;
+        $expected = [
+            'Club Dojo Konoha Budo' => '01', 'Gimnasio Piratas del Sol' => '02', 'Dojo Cuerpos de Cazadores' => '03',
+            'Escuela Nichirin de Kyokushin' => '04', 'Asociación Akatsuki Karate' => '05', 'Club de Artes Marciales Marineford' => '06',
+            'Dojo Kame Senryu' => '07', 'Dojo Red Ribbon Martial Arts' => '08',
+        ];
+        foreach ($expected as $club => $number) {
+            $this->assertStringEndsWith("club/{$number}.jpg", $c->clubLogoPath($club), $club);
+        }
+        $this->assertStringEndsWith('club/07.jpg', $c->clubLogoPath('dojo kame senryu'));
+    }
 }

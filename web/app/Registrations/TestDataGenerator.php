@@ -155,7 +155,8 @@ final class TestDataGenerator
                 $user->forceFill(['role' => 'club', 'created_by_user_id' => $event->user_id])->save();
             }
             $logo = (new DemoCatalog)->clubLogoPath($name);
-            if ($logo !== null && ! $user->hasLogo()) {
+            if ($logo !== null && (! $user->hasLogo() || self::isWrongDemoLogo($user, $logo))) {
+                $user->deleteLogo();
                 $user->forceFill(['logo_path' => self::storeCopy($logo, 'club-logos')])->save();
             }
             $event->clubs()->firstOrCreate(['user_id' => $user->id], ['status' => ClubStatus::Approved]);
@@ -179,6 +180,13 @@ final class TestDataGenerator
                     $user->delete();
                 }
             });
+    }
+
+    /** Cuenta ficticia cuyo logo guardado no es el del catálogo (p. ej. de una versión anterior): se sustituye. Las cuentas reales no se tocan. */
+    private static function isWrongDemoLogo(User $user, string $catalogLogo): bool
+    {
+        return str_ends_with((string) $user->email, self::CLUB_EMAIL_DOMAIN)
+            && md5_file($catalogLogo) !== md5(Storage::disk('local')->get($user->logo_path));
     }
 
     /** Copia un fichero del catálogo al disco local (carpeta dada) y devuelve la ruta relativa guardada. */

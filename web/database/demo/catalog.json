@@ -526,5 +526,15 @@
     "club": "Dojo Cuerpos de Cazadores"
    }
   ]
+ },
+ "logos": {
+  "Club Dojo Konoha Budo": "01.jpg",
+  "Gimnasio Piratas del Sol": "02.jpg",
+  "Dojo Cuerpos de Cazadores": "03.jpg",
+  "Escuela Nichirin de Kyokushin": "04.jpg",
+  "Asociación Akatsuki Karate": "05.jpg",
+  "Club de Artes Marciales Marineford": "06.jpg",
+  "Dojo Kame Senryu": "07.jpg",
+  "Dojo Red Ribbon Martial Arts": "08.jpg"
  }
 }

@@ -163,6 +163,6 @@
 .judge-votes .btn-check:checked + .btn { background-color: var(--bs-secondary-bg); border-color: var(--bs-body-color); box-shadow: inset 0 0 0 2px var(--bs-body-color); }
 
 /* Logo del club junto a su nombre en las vistas de tatami. */
-.club-name { display: inline-flex; align-items: center; gap: .4rem; }
-.club-logo { height: 1.5rem; width: auto; max-width: 3rem; object-fit: contain; border-radius: .2rem; }
+.club-name { display: inline-flex; align-items: center; vertical-align: middle; gap: .4rem; }
+.club-logo { vertical-align: middle; height: 1.5rem; width: auto; max-width: 3rem; object-fit: contain; border-radius: .2rem; }
 .tatami-bout .club-logo-corner { position: absolute; top: .75rem; right: .75rem; height: 3.5rem; max-width: 6rem; }
