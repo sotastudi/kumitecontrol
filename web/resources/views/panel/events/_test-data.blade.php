@@ -2,7 +2,7 @@
     <div class="card border-warning">
         <div class="card-header bg-warning-subtle fw-semibold">Datos de prueba (evento Test)</div>
         <div class="card-body">
-            <p class="text-muted small">Genera categorías e inscripciones ficticias para probar el sorteo, los tatamis y los resultados. Los inscritos de prueba llevan la nota «DEMO».</p>
+            <p class="text-muted small">Genera categorías e inscripciones ficticias para probar el sorteo, los tatamis y los resultados. Los inscritos de prueba llevan la nota «DEMO». Nombres, logos y avatares salen del listado Manga Kyokushin (8 clubs, 20 por categoría); lo que exceda se completa con datos aleatorios.</p>
             <div class="row g-4">
                 <div class="col-lg-5">
                     <h3 class="h6">Categorías de prueba</h3>
@@ -31,11 +31,11 @@
                             </div>
                             <div class="col-6 col-md-4">
                                 <label for="test-participants" class="form-label small mb-1">Participantes</label>
-                                <input type="number" id="test-participants" name="participants" value="{{ old('participants', 12) }}" min="1" max="{{ \App\Registrations\TestDataGenerator::MAX_PARTICIPANTS }}" class="form-control" required>
+                                <input type="number" id="test-participants" name="participants" value="{{ old('participants', 20) }}" min="1" max="{{ \App\Registrations\TestDataGenerator::MAX_PARTICIPANTS }}" class="form-control" required>
                             </div>
                             <div class="col-6 col-md-4">
                                 <label for="test-clubs" class="form-label small mb-1">Clubes</label>
-                                <input type="number" id="test-clubs" name="clubs" value="{{ old('clubs', 4) }}" min="1" max="50" class="form-control" required>
+                                <input type="number" id="test-clubs" name="clubs" value="{{ old('clubs', 8) }}" min="1" max="50" class="form-control" required>
                             </div>
                             <div class="col-12 col-md-4">
                                 <input type="hidden" name="confirmed" value="0">

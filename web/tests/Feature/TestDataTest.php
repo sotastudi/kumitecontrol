@@ -214,4 +214,15 @@ class TestDataTest extends TestCase
         $this->delete(route('panel.test.clean', $event));
         $this->assertSame([], Storage::disk('local')->allFiles('competitor-photos'));
     }
+
+    public function test_panel_defaults_are_eight_clubs_and_twenty_participants(): void
+    {
+        [$user, $event] = $this->testEvent();
+        Category::factory()->for($event)->create();
+
+        $html = $this->actingAs($user)->get(route('panel.events.show', $event))->getContent();
+
+        $this->assertMatchesRegularExpression('/name="participants" value="20"/', $html);
+        $this->assertMatchesRegularExpression('/name="clubs" value="8"/', $html);
+    }
 }
