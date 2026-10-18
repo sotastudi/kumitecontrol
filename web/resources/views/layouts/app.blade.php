@@ -139,7 +139,7 @@
         </a>
         <div class="d-flex align-items-center gap-2 ms-auto order-md-last nav-actions">
         @auth
-            <button type="button" id="sync-indicator" class="btn btn-sm btn-link text-decoration-none d-flex align-items-center gap-1 sync-indicator" data-sync-state="synced" aria-live="polite" title="Todo guardado en el servidor">
+            <button type="button" id="sync-indicator" data-csrf-url="{{ route('panel.csrf') }}" data-login-url="{{ route('login') }}" class="btn btn-sm btn-link text-decoration-none d-flex align-items-center gap-1 sync-indicator" data-sync-state="synced" aria-live="polite" title="Todo guardado en el servidor">
                 <svg class="sync-cloud-ok text-success" width="22" height="22" aria-hidden="true"><use href="#cloud-check"/></svg>
                 <span class="sync-pending d-none align-items-center gap-1 text-warning-emphasis">
                     <svg class="text-warning" width="18" height="18" aria-hidden="true"><use href="#warn"/></svg>
