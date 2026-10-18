@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Models\Registration;
 use App\Support\MartialLevels;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /** Categorías e inscripciones ficticias para probar un evento marcado como «Test». Los inscritos llevan la nota «DEMO». */
@@ -32,8 +33,6 @@ final class TestDataGenerator
 
     private const LAST = ['García', 'Martínez', 'López', 'Sánchez', 'Vidal', 'Roca', 'Puig', 'Serra', 'Mora', 'Díez', 'Ferrer', 'Soler', 'Vila', 'Pons', 'Ramos', 'Gil', 'Navarro', 'Costa', 'Prat', 'Ortega'];
 
-    private const CLUBS = ['Dojo Norte', 'Club Sakura', 'Karate Sur', 'Budokan Este', 'Judo Centro', 'Shotokan Oeste', 'Kodokan Mar', 'Dojo Montaña'];
-
     /**
      * Crea las categorías de prueba que falten: infantil mixta, junior por sexo y senior por sexo; con más de cinco se añaden
      * categorías senior por peso. Las que ya existen (mismo nombre) no se duplican.
@@ -43,6 +42,10 @@ final class TestDataGenerator
     public function categories(Event $event, int $count): int
     {
         $created = 0;
+
+        if (! $event->hasPoster()) {
+            $event->forceFill(['poster_path' => self::storeCopy((new DemoCatalog)->posterPath(), 'posters')])->save();
+        }
 
         foreach (array_slice($this->categoryTemplates(), 0, max(1, min(self::MAX_CATEGORIES, $count))) as $template) {
             if ($event->categories()->where('name', $template['name'])->exists()) {
@@ -137,6 +140,10 @@ final class TestDataGenerator
                 $user = (new User(['name' => $name, 'email' => Str::slug($name).self::CLUB_EMAIL_DOMAIN, 'password' => Str::random(32)]));
                 $user->forceFill(['role' => 'club', 'created_by_user_id' => $event->user_id])->save();
             }
+            $logo = (new DemoCatalog)->clubLogoPath($name);
+            if ($logo !== null && ! $user->hasLogo()) {
+                $user->forceFill(['logo_path' => self::storeCopy($logo, 'club-logos')])->save();
+            }
             $event->clubs()->firstOrCreate(['user_id' => $user->id], ['status' => ClubStatus::Approved]);
         }
     }
@@ -154,9 +161,16 @@ final class TestDataGenerator
                 $user = $club->user;
                 $club->delete();
                 if (! EventClub::where('user_id', $user->id)->exists()) {
+                    $user->deleteLogo();
                     $user->delete();
                 }
             });
+    }
+
+    /** Copia un fichero del catálogo al disco local (carpeta dada) y devuelve la ruta relativa guardada. */
+    private static function storeCopy(string $source, string $directory): string
+    {
+        return Storage::disk('local')->putFile($directory, new \Illuminate\Http\File($source));
     }
 
     /** @return list<array<string,mixed>> */
@@ -188,7 +202,7 @@ final class TestDataGenerator
     {
         $names = [];
         for ($i = 0; $i < $count; $i++) {
-            $names[] = self::CLUBS[$i] ?? 'Club '.($i + 1);
+            $names[] = (new DemoCatalog)->clubs()[$i] ?? 'Club '.($i + 1);
         }
 
         return $names;

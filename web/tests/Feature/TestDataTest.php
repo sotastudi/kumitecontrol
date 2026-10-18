@@ -7,12 +7,20 @@ use App\Models\Competitor;
 use App\Models\Event;
 use App\Models\Registration;
 use App\Models\User;
+use App\Registrations\DemoCatalog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class TestDataTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        \Illuminate\Support\Facades\Storage::fake('local');
+    }
 
     private function testEvent(array $o = []): array
     {
@@ -84,5 +92,50 @@ class TestDataTest extends TestCase
         $this->post(route('panel.test.categories', $event), ['count' => 5])->assertForbidden();
         $this->post(route('panel.test.registrations', $event), ['category_id' => $category->id, 'participants' => 4, 'clubs' => 2])->assertForbidden();
         $this->delete(route('panel.test.clean', $event))->assertForbidden();
+    }
+
+    public function test_default_clubs_are_the_eight_manga_clubs_with_logo_and_extra_clubs_have_none(): void
+    {
+        Storage::fake('local');
+        [$user, $event] = $this->testEvent();
+        $category = Category::factory()->for($event)->create(['min_age' => 18, 'max_age' => 30]);
+
+        $this->actingAs($user)->post(route('panel.test.registrations', $event), ['category_id' => $category->id, 'participants' => 20, 'clubs' => 10]);
+
+        $clubs = $event->clubs()->with('user')->get();
+        $this->assertCount(10, $clubs);
+        $names = $clubs->pluck('user.name')->all();
+        $this->assertEqualsCanonicalizing([...(new DemoCatalog)->clubs(), 'Club 9', 'Club 10'], $names);
+        foreach ($clubs as $club) {
+            $this->assertSame(! preg_match('/^Club \d+$/', $club->user->name), $club->user->hasLogo(), $club->user->name);
+        }
+    }
+
+    public function test_generating_categories_sets_the_poster_without_overwriting_an_existing_one(): void
+    {
+        Storage::fake('local');
+        [$user, $event] = $this->testEvent();
+
+        $this->actingAs($user)->post(route('panel.test.categories', $event), ['count' => 5]);
+        $this->assertTrue($event->fresh()->hasPoster());
+
+        Storage::disk('local')->put('posters/mio.jpg', 'x');
+        $event->forceFill(['poster_path' => 'posters/mio.jpg'])->save();
+        $this->post(route('panel.test.categories', $event), ['count' => 6]);
+        $this->assertSame('posters/mio.jpg', $event->fresh()->poster_path);
+    }
+
+    public function test_clean_deletes_club_logos_of_the_demo_clubs(): void
+    {
+        Storage::fake('local');
+        [$user, $event] = $this->testEvent();
+        $category = Category::factory()->for($event)->create();
+
+        $this->actingAs($user)->post(route('panel.test.registrations', $event), ['category_id' => $category->id, 'participants' => 8, 'clubs' => 8]);
+        $this->assertNotEmpty(Storage::disk('local')->allFiles('club-logos'));
+
+        $this->delete(route('panel.test.clean', $event));
+        $this->assertSame([], Storage::disk('local')->allFiles('club-logos'));
+        $this->assertSame(0, $event->clubs()->count());
     }
 }
