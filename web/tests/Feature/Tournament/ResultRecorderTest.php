@@ -178,6 +178,21 @@ class ResultRecorderTest extends TestCase
         $this->assertSame(0, $category->bouts()->whereNotNull('winner_id')->count());
     }
 
+    public function test_reset_clears_the_bronze_bout_fed_by_the_semifinal_losers(): void
+    {
+        $category = $this->generated(4);
+        foreach ([1, 2] as $position) {
+            $semi = $this->bout($category, 1, $position);
+            $this->recorder()->record($semi, $semi->slot_a_id);
+        }
+        $this->assertSame(2, $this->bout($category, 2, 1, true)->filledSlots());
+
+        app(CategoryResetter::class)->reset($category->fresh());
+
+        $bronze = $this->bout($category, 2, 1, true);
+        $this->assertSame([null, null, null], [$bronze->slot_a_id, $bronze->slot_b_id, $bronze->winner_id]);
+    }
+
     public function test_finished_events_do_not_accept_results(): void
     {
         $category = $this->generated(4);

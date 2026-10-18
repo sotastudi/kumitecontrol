@@ -8,8 +8,8 @@ use App\Support\MartialLevels;
 use Illuminate\Support\Collection;
 
 /**
- * Sorteo del cuadro según los criterios elegidos (nivel: mayor primero; peso: menor primero; después club),
- * con orden aleatorio entre iguales.
+ * Sorteo del cuadro según los criterios elegidos (nivel: mayor primero; peso: menor primero), con orden aleatorio
+ * entre iguales; el club no ordena, solo se usa para separar a los del mismo club al emparejar.
  *
  * Con n inscritos, m = mayor potencia de 2 ≤ n y P = n − m: los 2P peores disputan P combates de ronda previa
  * (emparejados con su vecino de la lista: nivel y peso parecidos) y los n − 2P mejores quedan exentos hasta la
@@ -34,10 +34,8 @@ final class DrawOrderer
                 ? fn ($a, $b) => ($ranks[$b->competitor->level] ?? -1) <=> ($ranks[$a->competitor->level] ?? -1)
                 : fn ($a, $b) => ($a->competitor->weight ?? INF) <=> ($b->competitor->weight ?? INF);
         }
-        if ($criteria->avoidsSameClub()) {
-            $comparators[] = fn ($a, $b) => $this->club($a) <=> $this->club($b);
-        }
-
+        // El club no ordena (decidiría los exentos por su nombre): solo separa al emparejar. Entre iguales manda el
+        // barajado previo (la ordenación es estable).
         $shuffled = $registrations->shuffle();
         $sorted = ($comparators ? $shuffled->sort(function ($a, $b) use ($comparators) {
             foreach ($comparators as $cmp) {

@@ -194,6 +194,40 @@ class DrawOrdererTest extends TestCase
         $this->assertStringContainsString('mismo club (Dojo Único)', $draw['warnings'][0]);
     }
 
+    /** Sorteos repetidos de 20 de clubes distintos (mismo nivel y peso): ni el primer club alfabético queda siempre exento ni el último siempre en la previa. */
+    private function assertExemptDoNotDependOnClubName(DrawCriteria $criteria): void
+    {
+        $rows = [];
+        foreach (range(1, 20) as $i) {
+            $rows[] = ['level' => '1º kyu', 'weight' => 70, 'club' => sprintf('Club %02d', $i)];
+        }
+        $category = $this->category($rows);
+        $clubs = $category->registrations()->with('competitor')->get()->mapWithKeys(fn ($r) => [$r->id => $r->competitor->club])->all();
+        $first = array_search('Club 01', $clubs, true);
+        $last = array_search('Club 20', $clubs, true);
+
+        $firstFought = $lastExempt = false;
+        foreach (range(1, 30) as $attempt) {
+            $exempt = array_merge(...array_filter($this->draw($category, $criteria)['slots'], fn ($s) => count($s) === 1));
+            $firstFought = $firstFought || ! in_array($first, $exempt, true);
+            $lastExempt = $lastExempt || in_array($last, $exempt, true);
+        }
+
+        $this->assertTrue($firstFought, "{$criteria->value}: el primer club alfabético nunca disputa la previa");
+        $this->assertTrue($lastExempt, "{$criteria->value}: el último club alfabético nunca queda exento");
+    }
+
+    public function test_club_only_draw_does_not_choose_the_exempt_by_club_name(): void
+    {
+        $this->assertExemptDoNotDependOnClubName(DrawCriteria::ClubOnly);
+    }
+
+    public function test_ties_within_a_level_are_not_resolved_by_club_name(): void
+    {
+        $this->assertExemptDoNotDependOnClubName(DrawCriteria::LevelWeightClub);
+        $this->assertExemptDoNotDependOnClubName(DrawCriteria::LevelClub);
+    }
+
     public function test_first_bout_avoids_same_club_when_possible(): void
     {
         foreach (range(1, 15) as $i) {
