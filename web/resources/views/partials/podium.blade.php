@@ -10,6 +10,7 @@
             <div class="podium-col podium-{{ $place }} text-center" role="listitem">
                 <div class="mb-2">
                     @foreach ($byPlace[$place] as $p)
+                        <div><x-competitor-photo :competitor="$p->registration->competitor" :event="$event" size="sm" /></div>
                         <div class="fw-semibold text-break">{{ $p->registration->competitor->displayName() }}@if (($editable ?? false) && $p->withdrawn) <small class="text-danger">(retirado)</small>@endif</div>
                         @if ($p->registration->competitor->club)<div class="small text-muted text-break">{{ $p->registration->competitor->club }}</div>@endif
                     @endforeach
@@ -24,7 +25,7 @@
         <ul class="list-group mb-3">
             @foreach ($byPlace[4] as $p)
                 <li class="list-group-item d-flex justify-content-between">
-                    <span>4.º — <strong>{{ $p->registration->competitor->displayName() }}</strong>@if (($editable ?? false) && $p->withdrawn) <small class="text-danger">(retirado)</small>@endif</span>
+                    <span>4.º — <x-competitor-photo :competitor="$p->registration->competitor" :event="$event" size="sm" /> <strong>{{ $p->registration->competitor->displayName() }}</strong>@if (($editable ?? false) && $p->withdrawn) <small class="text-danger">(retirado)</small>@endif</span>
                     <span class="text-muted">{{ $p->registration->competitor->club }}</span>
                 </li>
             @endforeach

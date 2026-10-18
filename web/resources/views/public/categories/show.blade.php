@@ -36,10 +36,11 @@
                     <td>{{ $bout->is_bronze ? 'Bronce' : \App\Tournament\RoundLabel::for($bout->round, $totalRounds, $bout->is_prelim) }}</td>
                     <td>
                         @foreach ([$bout->slotA, $bout->slotB] as $slot)
+                            @if ($slot)<x-competitor-photo :competitor="$slot->competitor" :event="$event" size="sm" />@endif
                             {{ $slot?->competitor->displayName() ?? 'Por determinar' }}@if ($slot?->competitor->club) <small class="text-muted">({{ $slot->competitor->club }})</small>@endif @unless ($loop->last) — @endunless
                         @endforeach
                     </td>
-                    <td>{{ $bout->winner?->competitor->displayName() ?? '—' }}</td>
+                    <td>@if ($bout->winner)<x-competitor-photo :competitor="$bout->winner->competitor" :event="$event" size="sm" />@endif {{ $bout->winner?->competitor->displayName() ?? '—' }}</td>
                 </tr>
             @endforeach
             </tbody>

@@ -42,6 +42,7 @@
                     @endif
                     <div class="fs-5 fw-semibold d-flex align-items-center gap-2">
                         <span class="side-chip {{ $slot === 'a' ? 'side-aka' : 'side-shiro' }}" tabindex="0" role="img" aria-label="{{ $slot === 'a' ? 'AKA (rojo)' : 'SHIRO (blanco)' }}"><span class="side-text">{{ $slot === 'a' ? 'AKA' : 'SHIRO' }}</span></span>
+                        <x-competitor-photo :competitor="$registration->competitor" :event="$event" size="lg" class="flex-shrink-0" />
                         <span class="text-break">{{ $registration->competitor->displayName() }}</span>
                         @if ($winner)<span class="badge text-bg-success">Ganador</span>@endif
                     </div>

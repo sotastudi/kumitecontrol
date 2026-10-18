@@ -29,6 +29,7 @@
                 @if (! $bout->isBye())
                     <span class="side-chip {{ $slot === 'a' ? 'side-aka' : 'side-shiro' }}" tabindex="0" role="img" aria-label="{{ $slot === 'a' ? 'AKA (rojo)' : 'SHIRO (blanco)' }}"><span class="side-text">{{ $slot === 'a' ? 'AKA' : 'SHIRO' }}</span></span>
                 @endif
+                @if ($registration)<x-competitor-photo :competitor="$registration->competitor" :event="$event" size="sm" />@endif
                 {{ $names[$slot] ?? $empty }}
                 @if (in_array($slot, $exemptSlots, true))
                     <small class="badge text-bg-light border fw-normal">Exento</small>
