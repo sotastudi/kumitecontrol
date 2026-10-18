@@ -37,6 +37,52 @@ class BracketAdjusterTest extends TestCase
         $this->assertSame($exempt, $this->bout($category, 1, 1)->slot_a_id);
     }
 
+    /** Ids de participantes en huecos de la ronda 1 (luchadores de previa) y de la ronda 2 (exentos). */
+    private function prelimAndExempt(\App\Models\Category $category): array
+    {
+        $ids = fn (int $round) => $category->bouts()->where('round', $round)->where('is_bronze', false)->get()
+            ->flatMap(fn ($b) => [$b->slot_a_id, $b->slot_b_id])->filter()->values();
+
+        return [$ids(1), $ids(2)];
+    }
+
+    private function slotOf(\App\Models\Category $category, int $round, int $registrationId): bool
+    {
+        return $category->bouts()->where('round', $round)->where('is_bronze', false)
+            ->where(fn ($q) => $q->where('slot_a_id', $registrationId)->orWhere('slot_b_id', $registrationId))->exists();
+    }
+
+    public function test_swap_exempt_and_prelim_fighter_in_both_directions_with_20(): void
+    {
+        $category = $this->generated(20);
+        [$prelim, $exempt] = $this->prelimAndExempt($category);
+        $p = $prelim->first();
+        $e = $exempt->first(fn ($id) => ! $prelim->contains($id));
+
+        app(BracketAdjuster::class)->swap($category, $e, $p);
+        $this->assertTrue($this->slotOf($category, 1, $e));
+        $this->assertTrue($this->slotOf($category, 2, $p));
+
+        app(BracketAdjuster::class)->swap($category->refresh(), $p, $e);
+        $this->assertTrue($this->slotOf($category, 1, $p));
+        $this->assertTrue($this->slotOf($category, 2, $e));
+    }
+
+    public function test_swap_between_two_exempt_participants(): void
+    {
+        $category = $this->generated(20);
+        [, $exempt] = $this->prelimAndExempt($category);
+        $directs = $category->bouts()->where('round', 2)->where('is_bronze', false)->orderBy('position')->get()
+            ->flatMap(fn ($b) => [['b' => $b->id, 'f' => 'slot_a_id', 'r' => $b->slot_a_id], ['b' => $b->id, 'f' => 'slot_b_id', 'r' => $b->slot_b_id]])
+            ->filter(fn ($x) => $x['r'])->values();
+        [$x, $y] = [$directs[0], $directs[1]];
+
+        app(BracketAdjuster::class)->swap($category, $x['r'], $y['r']);
+
+        $this->assertSame($y['r'], \App\Models\Bout::find($x['b'])->{$x['f']});
+        $this->assertSame($x['r'], \App\Models\Bout::find($y['b'])->{$y['f']});
+    }
+
     public function test_swap_is_refused_after_a_result_and_for_unknown_participants(): void
     {
         $category = $this->generated(4);

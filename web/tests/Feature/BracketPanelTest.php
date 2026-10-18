@@ -111,6 +111,17 @@ class BracketPanelTest extends TestCase
             ->assertSessionHasErrors('error');
     }
 
+    public function test_adjust_dropdown_lists_all_participants_including_exempt(): void
+    {
+        [$user, $event, $category] = $this->owned(20);
+        $this->actingAs($user)->post(route('panel.brackets.store', [$event, $category]));
+
+        $html = $this->actingAs($user)->get(route('panel.brackets.show', [$event, $category]))->assertOk()->getContent();
+        preg_match('/<select[^>]*id="registration_a".*?<\/select>/s', $html, $m);
+
+        $this->assertSame(20, substr_count($m[0], '<option'));
+    }
+
     public function test_stale_bracket_warning_is_shown(): void
     {
         [$user, $event, $category] = $this->owned(4);

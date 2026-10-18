@@ -2,7 +2,7 @@
 @section('title', 'Cuadro · '.$category->name)
 @section('content')
 @php
-    $participants = $bouts->where('round', 1)->where('is_bronze', false)->flatMap(fn ($b) => [$b->slotA, $b->slotB])->filter()->unique('id');
+    $participants = $bouts->whereIn('round', [1, 2])->where('is_bronze', false)->flatMap(fn ($b) => [$b->slotA, $b->slotB])->filter()->unique('id');
 @endphp
 @if ($readinessProblem && ! $regenerationLocked)
     <div class="alert alert-warning no-print">{{ $readinessProblem }} <a href="{{ route('panel.events.show', $event) }}" class="alert-link">Ir al evento</a></div>
