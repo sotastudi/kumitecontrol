@@ -8,7 +8,7 @@
 </div>
 <p class="text-muted">Cuentas de usuario y contraseña con las que tus controladores puntúan el combate actual de los tatamis que les asignes. Una misma cuenta sirve para todos tus eventos.</p>
 
-@if ($errors->any() && old('_form') !== 'create')
+@if ($errors->any() && old('_form') !== 'create' && ! str_starts_with((string) old('_form'), 'edit-'))
     <div class="alert alert-danger" role="alert">
         @foreach ($errors->all() as $message)<div>{{ $message }}</div>@endforeach
     </div>
@@ -74,7 +74,7 @@
                         </div>
                         @if ($own)
                             <div class="d-flex gap-2">
-                                <button type="button" class="btn btn-yellow btn-sm btn-icon" data-bs-toggle="collapse" data-bs-target="#edit-operator-{{ $operator->id }}" aria-expanded="false" aria-controls="edit-operator-{{ $operator->id }}"><svg width="16" height="16" aria-hidden="true"><use href="#pencil"/></svg> Editar</button>
+                                <button type="button" class="btn btn-yellow btn-sm btn-icon" data-bs-toggle="collapse" data-bs-target="#edit-operator-{{ $operator->id }}" aria-expanded="{{ old('_form') === 'edit-'.$operator->id ? 'true' : 'false' }}" aria-controls="edit-operator-{{ $operator->id }}"><svg width="16" height="16" aria-hidden="true"><use href="#pencil"/></svg> Editar</button>
                                 <form method="POST" action="{{ route('panel.my-operators.destroy', $operator) }}" onsubmit="return confirm('¿Eliminar la cuenta «{{ $operator->username }}»? Perderá el acceso a todos tus eventos.')">
                                     @csrf
                                     @method('DELETE')
@@ -83,19 +83,47 @@
                             </div>
                         @endif
                     </div>
+                    @if ($own && str_starts_with((string) old('_form'), 'edit-') && old('_form') === 'edit-'.$operator->id)
+                        <div class="alert alert-danger mt-3 mb-0" role="alert">@foreach ($errors->all() as $message)<div>{{ $message }}</div>@endforeach</div>
+                    @endif
                     @unless ($own)
                         <p class="small text-muted mb-0 mt-2">Esta cuenta no la creaste tú: no puedes cambiar sus credenciales.</p>
                     @endunless
 
-                    {{-- Aquí irá la asignación por evento (tarea 2). --}}
+                    {{-- Asignación por evento: una casilla por tatami. --}}
+                    @if ($events->isNotEmpty())
+                        <div class="mt-3 border-top pt-2">
+                            <div class="small fw-semibold mb-1">Asignar a mis eventos</div>
+                            @foreach ($events as $event)
+                                @php $current = $byEvent->get($event->id, collect())->pluck('tatami')->all(); @endphp
+                                <form method="POST" action="{{ route('panel.my-operators.assign', [$operator, $event]) }}" class="d-flex align-items-center flex-wrap gap-3 py-1">
+                                    @csrf
+                                    @method('PUT')
+                                    <span class="small" style="min-width: 12rem">{{ $event->name }} <span class="text-muted">· {{ $event->starts_on?->format('d/m/Y') }}</span></span>
+                                    <span class="d-flex flex-wrap gap-3">
+                                        @for ($t = 1; $t <= $event->tatamiCount(); $t++)
+                                            <span class="form-check form-check-inline m-0">
+                                                <input class="form-check-input" type="checkbox" name="tatamis[]" value="{{ $t }}" id="as-{{ $operator->id }}-{{ $event->id }}-{{ $t }}" @checked(in_array($t, $current))>
+                                                <label class="form-check-label small" for="as-{{ $operator->id }}-{{ $event->id }}-{{ $t }}">Tatami {{ $t }}</label>
+                                            </span>
+                                        @endfor
+                                    </span>
+                                    <button type="submit" class="btn btn-outline-primary btn-sm">Guardar</button>
+                                </form>
+                            @endforeach
+                            <div class="form-text">Sin ningún tatami marcado, la cuenta deja de tener acceso a ese evento.</div>
+                        </div>
+                    @endif
 
                     @if ($own)
-                        <form method="POST" action="{{ route('panel.my-operators.update', $operator) }}" class="collapse mt-3 row g-2 align-items-start" id="edit-operator-{{ $operator->id }}">
+                        @php $editing = old('_form') === 'edit-'.$operator->id; @endphp
+                        <form method="POST" action="{{ route('panel.my-operators.update', $operator) }}" class="collapse{{ $editing ? ' show' : '' }} mt-3 row g-2 align-items-start" id="edit-operator-{{ $operator->id }}">
                             @csrf
                             @method('PUT')
-                            <div class="col-12 col-md-3"><label class="form-label" for="eu-{{ $operator->id }}">Usuario</label><input type="text" class="form-control" id="eu-{{ $operator->id }}" name="username" value="{{ $operator->username }}" required autocomplete="off"></div>
-                            <div class="col-12 col-md-3"><label class="form-label" for="en-{{ $operator->id }}">Nombre</label><input type="text" class="form-control" id="en-{{ $operator->id }}" name="name" value="{{ $operator->name }}"></div>
-                            <div class="col-12 col-md-3"><label class="form-label" for="ee-{{ $operator->id }}">Correo (opcional)</label><input type="email" class="form-control" id="ee-{{ $operator->id }}" name="email" value="{{ $operator->email }}"></div>
+                            <input type="hidden" name="_form" value="edit-{{ $operator->id }}">
+                            <div class="col-12 col-md-3"><label class="form-label" for="eu-{{ $operator->id }}">Usuario</label><input type="text" class="form-control" id="eu-{{ $operator->id }}" name="username" value="{{ $editing ? old('username') : $operator->username }}" required autocomplete="off"></div>
+                            <div class="col-12 col-md-3"><label class="form-label" for="en-{{ $operator->id }}">Nombre</label><input type="text" class="form-control" id="en-{{ $operator->id }}" name="name" value="{{ $editing ? old('name') : $operator->name }}"></div>
+                            <div class="col-12 col-md-3"><label class="form-label" for="ee-{{ $operator->id }}">Correo (opcional)</label><input type="email" class="form-control" id="ee-{{ $operator->id }}" name="email" value="{{ $editing ? old('email') : $operator->email }}"></div>
                             <div class="col-12 col-md-3">
                                 <label class="form-label" for="new-password-{{ $operator->id }}">Nueva contraseña</label>
                                 <div class="input-group">

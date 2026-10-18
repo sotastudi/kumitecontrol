@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Panel;
 
 use App\Http\Controllers\Controller;
+use App\Models\Event;
 use App\Models\TatamiOperator;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
@@ -30,6 +31,8 @@ class MyOperatorsController extends Controller
 
         return view('panel.operators.index', [
             'operators' => $operators,
+            // Eventos propios con tatamis, por fecha, para asignar.
+            'events' => $organizer->events()->where('tatami_count', '>', 0)->orderBy('starts_on')->orderBy('id')->get(),
             'organizerId' => $organizer->id,
         ]);
     }
@@ -81,6 +84,29 @@ class MyOperatorsController extends Controller
         return back()->with('status', 'Controlador actualizado.');
     }
 
+    /** Sincroniza los tatamis de la cuenta en un evento propio; sin tatamis la retira del evento. */
+    public function assign(Request $request, User $operator, Event $event): RedirectResponse
+    {
+        $organizer = $this->organizer($request);
+        abort_unless((int) $event->user_id === (int) $organizer->id, 403);
+        abort_unless($operator->isTatamiAccount() && $this->visibleTo($organizer, $operator), 403);
+
+        $data = $request->validate([
+            'tatamis' => ['nullable', 'array'],
+            'tatamis.*' => ['integer', 'min:1', 'max:'.$event->tatamiCount()],
+        ]);
+        $tatamis = array_values(array_unique(array_map('intval', $data['tatamis'] ?? [])));
+
+        $event->operators()->where('user_id', $operator->id)->whereNotIn('tatami', $tatamis)->delete();
+        foreach ($tatamis as $tatami) {
+            $event->operators()->firstOrCreate(['user_id' => $operator->id, 'tatami' => $tatami]);
+        }
+
+        return back()->with('status', $tatamis
+            ? "«{$operator->username}» puede puntuar en «{$event->name}» los tatamis: ".implode(', ', $tatamis).'.'
+            : "«{$operator->username}» ya no tiene acceso a «{$event->name}».");
+    }
+
     public function destroy(Request $request, User $operator): RedirectResponse
     {
         $organizer = $this->authorizeOwn($request, $operator);
@@ -114,6 +140,13 @@ class MyOperatorsController extends Controller
         abort_unless($operator->isTatamiAccount() && (int) $operator->created_by_user_id === (int) $organizer->id, 403);
 
         return $organizer;
+    }
+
+    /** Cuenta creada por él o que opera en alguno de sus eventos (misma regla que el listado). */
+    private function visibleTo(User $organizer, User $operator): bool
+    {
+        return (int) $operator->created_by_user_id === (int) $organizer->id
+            || $operator->tatamiOperations()->whereIn('event_id', $organizer->events()->select('id'))->exists();
     }
 
     private function normalize(Request $request): void

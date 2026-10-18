@@ -88,6 +88,7 @@ Route::middleware('auth')->prefix('panel')->name('panel.')->group(function () {
     Route::post('controladores', [MyOperatorsController::class, 'store'])->name('my-operators.store');
     Route::put('controladores/{operator}', [MyOperatorsController::class, 'update'])->name('my-operators.update');
     Route::delete('controladores/{operator}', [MyOperatorsController::class, 'destroy'])->name('my-operators.destroy');
+    Route::put('controladores/{operator}/eventos/{event}', [MyOperatorsController::class, 'assign'])->name('my-operators.assign');
     Route::get('eventos', [EventController::class, 'index'])->name('events.index');
     Route::get('eventos/crear', [EventController::class, 'create'])->name('events.create');
     Route::post('eventos', [EventController::class, 'store'])->name('events.store');
