@@ -38,6 +38,16 @@ class PublicPhotoViewsTest extends TestCase
         return route('public.competitors.photo', [$event, $c], false);
     }
 
+    /** Fragmento de HTML entre dos marcadores (hasta el final si no hay cierre). */
+    private function between(string $html, string $start, string $end): string
+    {
+        $from = strpos($html, $start);
+        $this->assertNotFalse($from, "No aparece {$start}");
+        $to = strpos($html, $end, $from);
+
+        return $to === false ? substr($html, $from) : substr($html, $from, $to - $from);
+    }
+
     private function play(Category $category): void
     {
         $recorder = app(ResultRecorder::class);
@@ -78,9 +88,9 @@ class PublicPhotoViewsTest extends TestCase
 
     public function test_tatami_and_pages_show_no_photo_with_event_flag_off(): void
     {
-        $category = $this->scenario(false);
+        $category = $this->scenario();
         $event = $category->event;
-        $this->play($category);
+        $control = $category->bouts()->orderBy('number')->get()->first(fn ($b) => $b->isReady())->slotA->competitor;
 
         $urls = [
             route('panel.tatamis.show', [$event, 1]),
@@ -88,10 +98,33 @@ class PublicPhotoViewsTest extends TestCase
             route('public.events.show', [$event]),
             route('public.categories.show', [$event, $category]),
         ];
+        // Con el evento en mostrar, todas las vistas pintan la foto (el control demuestra que sí se renderizaría).
+        foreach ($urls as $url) {
+            $html = $this->actingAs($event->user)->seeResults($event)->get($url)->assertOk()->getContent();
+            $this->assertStringContainsString($this->photoPath($event, $control), $html, $url);
+        }
+
+        $event->forceFill(['show_photos_publicly' => false])->save();
         foreach ($urls as $url) {
             $html = $this->actingAs($event->user)->seeResults($event)->get($url)->assertOk()->getContent();
             $this->assertDoesNotMatchRegularExpression('#/competidores/\d+/foto#', $html, $url);
         }
+    }
+
+    public function test_panel_bracket_cards_show_photos_under_the_rule(): void
+    {
+        $category = $this->scenario();
+        $event = $category->event;
+        $bout = $category->bouts()->orderBy('number')->get()->first(fn ($b) => $b->isReady());
+        $a = $bout->slotA->competitor;
+        $b = $bout->slotB->competitor;
+        $b->update(['photo_public' => false]);
+
+        $html = $this->actingAs($event->user)->get(route('panel.brackets.show', [$event, $category]))->assertOk()->getContent();
+        $cards = $this->between($html, '<h2 class="h5">Cuadro</h2>', '</section>');
+        $this->assertStringContainsString('bout-card', $cards);
+        $this->assertStringContainsString($this->photoPath($event, $a), $cards);
+        $this->assertStringNotContainsString($this->photoPath($event, $b), $cards);
     }
 
     public function test_public_category_page_shows_photos_in_bracket_results_and_podium(): void
@@ -100,17 +133,25 @@ class PublicPhotoViewsTest extends TestCase
         $event = $category->event;
         $this->play($category);
         $champion = $category->refresh()->bouts()->where('is_bronze', false)->orderByDesc('round')->first()->winner->competitor;
+        $url = route('public.categories.show', [$event, $category]);
 
-        $html = $this->seeResults($event)->get(route('public.categories.show', [$event, $category]))->assertOk()->getContent();
-        foreach (Competitor::where('event_id', $event->id)->get() as $c) {
-            $this->assertStringContainsString($this->photoPath($event, $c), $html);
+        // Cada sección se comprueba por separado: quitar la miniatura de una sola debe romper el test.
+        $html = $this->seeResults($event)->get($url)->assertOk()->getContent();
+        $sections = [
+            'podio' => $this->between($html, 'class="podium ', '</section>'),
+            'cuadro' => $this->between($html, '<h2 class="h5">Cuadro</h2>', '</section>'),
+            'resultados' => $this->between($html, '<h2 class="h5">Resultados</h2>', '</section>'),
+        ];
+        foreach ($sections as $name => $fragment) {
+            foreach (Competitor::where('event_id', $event->id)->get() as $c) {
+                $this->assertStringContainsString($this->photoPath($event, $c), $fragment, "{$name}: falta la foto de {$c->id}");
+            }
         }
-        // El campeón sale en el podio, el cuadro y la tabla de resultados.
-        $this->assertGreaterThanOrEqual(3, substr_count($html, $this->photoPath($event, $champion)));
 
         $champion->update(['photo_public' => false]);
-        $html = $this->seeResults($event)->get(route('public.categories.show', [$event, $category]))->getContent();
+        $html = $this->seeResults($event)->get($url)->getContent();
         $this->assertStringNotContainsString($this->photoPath($event, $champion), $html);
+        $this->assertStringContainsString($this->photoPath($event, Competitor::where('event_id', $event->id)->where('id', '!=', $champion->id)->first()), $html);
     }
 
     public function test_public_event_page_now_block_shows_photos_under_the_rule(): void
@@ -137,11 +178,13 @@ class PublicPhotoViewsTest extends TestCase
         $event = $category->event;
         $bout = $category->bouts()->orderBy('number')->get()->first(fn ($b) => $b->isReady());
         $minor = $bout->slotA->competitor;
+        $control = $bout->slotB->competitor; // adulto con todo permitido
         $minor->forceFill(['birth_date' => now()->subYears(10)->format('Y-m-d')])->save();
 
         foreach ([route('panel.tatamis.show', [$event, 1]), route('public.events.show', $event), route('public.categories.show', [$event, $category])] as $url) {
             $html = $this->actingAs($event->user)->seeResults($event)->get($url)->assertOk()->getContent();
             $this->assertStringNotContainsString($this->photoPath($event, $minor), $html, $url);
+            $this->assertStringContainsString($this->photoPath($event, $control), $html, $url);
         }
     }
 
