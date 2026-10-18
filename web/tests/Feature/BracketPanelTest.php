@@ -289,4 +289,38 @@ class BracketPanelTest extends TestCase
         $cards = collect(app(PaperBracket::class)->pages($category)[0]['cards']);
         $this->assertSame(['Pase'], $cards->flatMap(fn ($c) => $c['rows'])->pluck('label')->filter()->values()->all());
     }
+
+    public function test_category_navigation_lists_bracket_categories_with_previous_and_next(): void
+    {
+        $user = User::factory()->create();
+        $event = Event::factory()->for($user)->create();
+        [$a, $b, $c] = collect(['Aaa', 'Bbb', 'Ccc'])->map(fn ($name) => Category::factory()->for($event)->create(['name' => $name, 'modality' => 'kumite']))->all();
+        Category::factory()->for($event)->create(['name' => 'Exhibición Z', 'modality' => 'exhibition']);
+        Category::factory()->for(Event::factory()->for($user))->create(['name' => 'De otro evento', 'modality' => 'kumite']);
+
+        $html = $this->actingAs($user)->get(route('panel.brackets.show', [$event, $b]))->assertOk()->getContent();
+
+        $this->assertStringContainsString('aria-label="Cambiar de categoría"', $html);
+        foreach ([$a, $b, $c] as $category) {
+            $this->assertStringContainsString('value="'.route('panel.brackets.show', [$event, $category]).'"', $html);
+        }
+        $this->assertMatchesRegularExpression('/value="[^"]*categorias\/'.$b->id.'\/cuadro"\s+selected/', $html);
+        $this->assertStringNotContainsString('Exhibición Z', $html);
+        $this->assertStringNotContainsString('De otro evento', $html);
+        $this->assertStringContainsString('href="'.route('panel.brackets.show', [$event, $a]).'" class="btn btn-outline-secondary btn-sm"', $html);
+        $this->assertStringContainsString('href="'.route('panel.brackets.show', [$event, $c]).'" class="btn btn-outline-secondary btn-sm"', $html);
+
+        // En los extremos, el botón correspondiente está deshabilitado.
+        $first = $this->get(route('panel.brackets.show', [$event, $a]))->getContent();
+        $this->assertStringContainsString('<span class="btn btn-outline-secondary btn-sm disabled" aria-disabled="true">&lsaquo; Anterior</span>', $first);
+        $last = $this->get(route('panel.brackets.show', [$event, $c]))->getContent();
+        $this->assertStringContainsString('<span class="btn btn-outline-secondary btn-sm disabled" aria-disabled="true">Siguiente &rsaquo;</span>', $last);
+    }
+
+    public function test_category_navigation_is_hidden_with_a_single_bracket_category(): void
+    {
+        [$user, $event, $category] = $this->owned(4);
+
+        $this->actingAs($user)->get(route('panel.brackets.show', [$event, $category]))->assertOk()->assertDontSee('Cambiar de categoría', false);
+    }
 }

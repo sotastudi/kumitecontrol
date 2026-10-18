@@ -36,6 +36,7 @@ class BracketController extends Controller
             'regenerationLocked' => $locked,
             'readinessProblem' => $generator->readinessProblem($category),
             'canRecord' => $locked || ! $stale,
+            'siblings' => $event->categories()->orderBy('name')->get()->filter(fn (Category $c) => $c->modalityEnum()->hasBracket())->values(),
         ]);
     }
 
