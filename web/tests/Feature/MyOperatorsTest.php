@@ -273,4 +273,15 @@ class MyOperatorsTest extends TestCase
         $this->actingAs($org)->put(route('panel.my-operators.assign', [$acc, $none]), ['tatamis' => [1]])->assertNotFound();
         $this->assertSame(0, \App\Models\TatamiOperator::count());
     }
+
+    public function test_event_page_links_to_my_operators_and_help_mentions_it(): void
+    {
+        $org = User::factory()->create();
+        $event = Event::factory()->for($org)->create(['tatami_count' => 2]);
+
+        $this->actingAs($org)->get(route('panel.events.show', $event))->assertOk()
+            ->assertSee('Gestionar todos tus controladores')
+            ->assertSee('href="'.route('panel.my-operators.index').'"', false);
+        $this->get(route('help'))->assertOk()->assertSee('Mis controladores');
+    }
 }
