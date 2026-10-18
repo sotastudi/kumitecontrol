@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Una foto de inscrito se muestra en las vistas del controlador de tatami y en las públicas solo si el evento permite mostrar fotos **y** la ficha del inscrito permite mostrar la suya **y** la foto existe; la ficha manda: si dice «no mostrar», no se muestra aunque el evento lo permita.
+**Goal:** Una foto de inscrito se muestra en las vistas del controlador de tatami y en las públicas solo si el evento permite mostrar fotos **y** la ficha del inscrito permite mostrar la suya **y** la foto existe **y**, si es menor de edad en la fecha del evento, su representante dio consentimiento; la ficha manda: si dice «no mostrar», no se muestra aunque el evento lo permita.
 
 **Architecture:** Dos banderas: `events.show_photos_publicly` (por defecto false: hay que activarlo) y `competitors.photo_public` (por defecto true: el inscrito/organizador puede desactivarla). Una única regla en `Competitor::publicPhotoUrl(Event): ?string` decide si hay URL; una ruta nueva tras el código de acceso (`EnsureResultsAccess`) sirve el fichero y aplica la misma regla; un componente Blade `<x-competitor-photo>` pinta la miniatura (o nada) en todas las vistas. La ruta del panel (`panel.competitors.photo`, siempre visible para el organizador) no cambia.
 
@@ -12,19 +12,19 @@
 
 ## Global Constraints
 
-- Regla única de visibilidad: `foto presente (photo_path relleno) ∧ competitor.photo_public ∧ event.show_photos_publicly`. La ficha (`photo_public = false`) gana siempre.
+- Regla única de visibilidad: `foto presente (photo_path relleno) ∧ competitor.photo_public ∧ event.show_photos_publicly ∧ (no es menor el día del evento ∨ guardian_consent_at no nulo)`. La ficha (`photo_public = false`) gana siempre. «Menor» = `Competitor::isMinorOn($event->starts_on)` (edad de adulto en `config('kumitecontrol.adult_age')`, 18); el consentimiento es `guardian_consent_at` (ya se guarda en la inscripción pública con la casilla de consentimiento; el organizador no lo marca desde la ficha en este plan). Decisión del usuario: opción B.
 - Valores por defecto: `events.show_photos_publicly = false`; `competitors.photo_public = true`. Los inscritos existentes quedan con `true`; como los eventos existentes quedan en `false`, **nada se publica hasta que el organizador active el evento**.
 - Las fotos solo se sirven tras el código de acceso del evento (o a su propietario / controladores de tatami), igual que cuadros y resultados (`EnsureResultsAccess`, `ResultsAccess`); nunca a un visitante sin código ni en eventos no listados sin sesión autorizada.
 - El organizador sigue viendo siempre la foto en su ficha (`panel.competitors.photo`) con independencia de las banderas.
-- Etiquetas de formulario (español): evento «Mostrar públicamente las fotos de los inscritos»; ficha/inscripción «Mostrar mi foto públicamente (si el organizador lo permite)». Textos que dicen que la foto «no se publica» se corrigen (`panel/competitors/_fields`, `public/registration.blade.php`, `docs/menores.md`, `docs/README.md`, `docs/decisiones-pendientes.md`, `HelpContent`).
+- Etiquetas de formulario (español): evento «Mostrar públicamente las fotos de los inscritos»; ficha/inscripción «Mostrar mi foto públicamente (si el organizador lo permite)». Los textos de formulario explican la regla de menores («Si eres menor, solo se muestra con el consentimiento de tu representante»). Textos que dicen que la foto «no se publica» se corrigen (`panel/competitors/_fields`, `public/registration.blade.php`, `docs/menores.md`, `docs/README.md`, `docs/decisiones-pendientes.md`, `HelpContent`).
 - No se copian fotos entre eventos ni hay foto en el plantel del club (`club_athletes`); sin cambios ahí.
 - Sin dependencias nuevas. CSS mínimo y reutilizable (una clase para la miniatura); recompilar con `npm run build` (ver memoria de node) y avisar del build en producción. Tests que escriban en disco usan `Storage::fake('local')`.
 - Tras la tarea final: versión 0.0.29, tag `v0.0.29`, `git push --follow-tags` (regla del usuario). Commits solo de mis cambios, por tema.
 
 ## Review Focus
 
-- Menor de edad con foto: la regla pedida no distingue edad ni consentimiento del representante (`guardian_consent_at`); con el evento activado, la foto de un menor se publicaría si la ficha lo permite (por defecto `true`). **Decisión abierta para el usuario** (ver mensaje de entrega); el plan implementa la regla literal y deja el punto señalado.
-- Acceso directo a la URL de la foto sin código de acceso, con la ficha en «no mostrar», con el evento en «no mostrar» o con un competidor de **otro** evento: 302 a la página del evento / 404, nunca el fichero.
+- Menor de edad sin consentimiento del representante (`guardian_consent_at` nulo): su foto no se muestra aunque evento y ficha lo permitan; con consentimiento sí; un adulto no necesita consentimiento; sin `birth_date` se trata como menor (no se muestra) y no rompe.
+- Acceso directo a la URL de la foto sin código de acceso, con la ficha en «no mostrar», con el evento en «no mostrar» o con un menor sin consentimiento o con un competidor de **otro** evento: 302 a la página del evento / 404, nunca el fichero.
 - Foto referenciada en BD pero fichero borrado (`photo_path` sin fichero): la vista no debe romperse (la ruta da 404 y la miniatura no aparece; sin excepción).
 - Cuadros grandes (decenas de combates): el componente no hace consultas ni accesos a disco por inscrito (solo mira columnas ya cargadas); `with('slotA.competitor')` ya existe en las vistas.
 - Quitar la foto o desmarcar «mostrar» desde la ficha deja de servirla de inmediato (cache `private`, no `public`).
@@ -46,9 +46,9 @@
 
 **Interfaces:**
 - Produces: columnas `events.show_photos_publicly` (boolean, default false) y `competitors.photo_public` (boolean, default true), ambas con cast `boolean` y en `#[Fillable]`; `Competitor::FIELDS` incluye `photo_public`.
-- Produces: `Competitor::publicPhotoUrl(Event $event): ?string` — `null` salvo que `filled($this->photo_path) && $this->photo_public && $event->show_photos_publicly`; entonces `route('public.competitors.photo', [$event, $this]).'?v='.$this->updated_at?->timestamp` (la ruta se crea en Task 3; hasta entonces el test de URL puede usar la misma `route()` tras Task 3 — implementar la ruta mínima o ordenar commits en consecuencia). No toca disco.
+- Produces: `Competitor::publicPhotoUrl(Event $event): ?string` — `null` salvo que `filled($this->photo_path) && $this->photo_public && $event->show_photos_publicly && ($this->birth_date !== null && ! $this->isMinorOn($event->starts_on) || $this->guardian_consent_at !== null)`; entonces `route('public.competitors.photo', [$event, $this]).'?v='.$this->updated_at?->timestamp` (la ruta se crea en Task 3; hasta entonces el test de URL puede usar la misma `route()` tras Task 3 — implementar la ruta mínima o ordenar commits en consecuencia). No toca disco.
 
-- [ ] **Step 1: Failing tests** (matriz de la regla): con foto, evento `true`, ficha `true` ⇒ URL; evento `false` ⇒ null; ficha `false` ⇒ null aunque el evento sea `true`; sin `photo_path` ⇒ null; valores por defecto (`show_photos_publicly=false`, `photo_public=true`) tras `Event::factory()` / `Competitor::factory()`.
+- [ ] **Step 1: Failing tests** (matriz de la regla): con foto, evento `true`, ficha `true` ⇒ URL; evento `false` ⇒ null; ficha `false` ⇒ null aunque el evento sea `true`; sin `photo_path` ⇒ null; menor el día del evento sin `guardian_consent_at` ⇒ null, con consentimiento ⇒ URL, adulto sin consentimiento ⇒ URL, sin `birth_date` ⇒ null; valores por defecto (`show_photos_publicly=false`, `photo_public=true`) tras `Event::factory()` / `Competitor::factory()`.
 - [ ] **Step 2: Run** `cd web && /usr/local/bin/php artisan test --filter=PublicPhotoTest` → FAIL.
 - [ ] **Step 3: Implement** migración (con `down()`), casts, fillable, `FIELDS`, `publicPhotoUrl`.
 - [ ] **Step 4: Run** mismo filtro + `php artisan migrate` local → PASS.
@@ -100,6 +100,6 @@
 
 **Files:** Modify `docs/menores.md`, `docs/README.md`, `docs/decisiones-pendientes.md`, `web/app/Support/HelpContent.php`, `web/config/app.php`; Test `HelpTest` existente.
 
-- [ ] **Step 1:** Actualizar docs y ayuda (la foto deja de ser siempre privada: es opt-in por evento y por ficha; la ficha manda; ver la nota sobre menores) y una pregunta frecuente «¿Cómo muestro u oculto las fotos de los inscritos?».
+- [ ] **Step 1:** Actualizar docs y ayuda (la foto deja de ser siempre privada: es opt-in por evento y por ficha; la ficha manda; los menores solo con consentimiento del representante) y una pregunta frecuente «¿Cómo muestro u oculto las fotos de los inscritos?».
 - [ ] **Step 2:** Suite completa `-d memory_limit=1G vendor/bin/phpunit` → verde; commit `docs: fotos públicas opt-in en docs y ayuda`.
 - [ ] **Step 3:** `chore: versión 0.0.29`, tag `v0.0.29`, `git push --follow-tags`. Producción: `php artisan migrate` y recompilar assets (`npm run build`).
