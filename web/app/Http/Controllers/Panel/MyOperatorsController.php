@@ -89,6 +89,8 @@ class MyOperatorsController extends Controller
     {
         $organizer = $this->organizer($request);
         abort_unless((int) $event->user_id === (int) $organizer->id, 403);
+        // Un evento sin tatamis no admite asignaciones.
+        abort_unless((int) $event->tatami_count > 0, 404);
         abort_unless($operator->isTatamiAccount() && $this->visibleTo($organizer, $operator), 403);
 
         $data = $request->validate([

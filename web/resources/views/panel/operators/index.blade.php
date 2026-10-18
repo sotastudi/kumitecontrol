@@ -83,7 +83,7 @@
                             </div>
                         @endif
                     </div>
-                    @if ($own && str_starts_with((string) old('_form'), 'edit-') && old('_form') === 'edit-'.$operator->id)
+                    @if ($own && old('_form') === 'edit-'.$operator->id)
                         <div class="alert alert-danger mt-3 mb-0" role="alert">@foreach ($errors->all() as $message)<div>{{ $message }}</div>@endforeach</div>
                     @endif
                     @unless ($own)

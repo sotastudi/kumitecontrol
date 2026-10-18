@@ -159,9 +159,7 @@ class MyOperatorsTest extends TestCase
             ->assertSessionHasErrors(['username' => 'Ese usuario ya existe']);
         $this->assertSame('primera', $acc->fresh()->username);
 
-        $this->actingAs($org)->withSession([])->get(route('panel.my-operators.index'));
-        $res = $this->actingAs($org)->from(route('panel.my-operators.index'))
-            ->followingRedirects()
+        $res = $this->actingAs($org)->followingRedirects()->from(route('panel.my-operators.index'))
             ->put(route('panel.my-operators.update', $acc), ['_form' => 'edit-'.$acc->id, 'username' => 'segunda', 'name' => 'Nombre nuevo']);
         $res->assertSee('id="edit-operator-'.$acc->id.'"', false);
         $res->assertSee('collapse show mt-3', false);
@@ -265,5 +263,14 @@ class MyOperatorsTest extends TestCase
         $this->actingAs($acc)->get(route('panel.tatamis.show', [$e1, 2]))->assertOk();
         $this->actingAs($acc)->get(route('panel.tatamis.show', [$e1, 1]))->assertForbidden();
         $this->actingAs($org)->get(route('panel.events.show', $e1))->assertOk()->assertSee('juez.multi');
+    }
+
+    public function test_assign_to_event_without_tatamis_is_rejected_and_writes_nothing(): void
+    {
+        [$org, $acc] = $this->tatamiAccountAndEvents();
+        $none = Event::factory()->for($org)->create(['tatami_count' => 0]);
+
+        $this->actingAs($org)->put(route('panel.my-operators.assign', [$acc, $none]), ['tatamis' => [1]])->assertNotFound();
+        $this->assertSame(0, \App\Models\TatamiOperator::count());
     }
 }
