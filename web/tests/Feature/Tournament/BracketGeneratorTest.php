@@ -146,7 +146,7 @@ class BracketGeneratorTest extends TestCase
 
         app(BracketGenerator::class)->generate($category->refresh());
 
-        $this->assertSame(7, $category->bouts()->count()); // 5 participantes ahora
+        $this->assertSame(8, $category->bouts()->count()); // 5 participantes ahora (cuadro de 4 huecos con 3 exentos)
         $this->assertNotNull($category->fresh()->bracket_generated_at);
     }
 

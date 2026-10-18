@@ -80,7 +80,9 @@ final class BracketGenerator
             }
             $warnings = [];
         } else {
-            ['pairs' => $pairs, 'warnings' => $warnings] = $this->orderer->order($registrations, $category->effectiveDrawCriteria());
+            ['slots' => $slots, 'warnings' => $warnings] = $this->orderer->order($registrations, $category->effectiveDrawCriteria());
+            // Provisional: cada exento entra como un pase de 1.ª ronda.
+            $pairs = array_map(fn (array $slot) => [$slot[0], $slot[1] ?? null], $slots);
         }
 
         DB::transaction(function () use ($category, $pairs, $warnings) {

@@ -61,18 +61,18 @@ class FirstMilestoneTest extends TestCase
 
         $this->readyForBrackets($event);
         $this->post(route('panel.brackets.store', [$event, $category]))->assertSessionHasNoErrors();
-        // Como mucho un participante suelto por ronda: uno en la primera ronda y otro en la segunda.
-        $this->assertSame(2, $category->bouts()->where('required_participants', 1)->where('is_bronze', false)->count(), 'cinco competidores → dos pases');
-        $this->assertSame(1, $category->bouts()->where('round', 1)->where('required_participants', 1)->count());
+        // Cinco competidores: un combate de ronda previa y tres exentos; todos colocados una sola vez.
+        $placed = $category->bouts()->where('round', '<=', 2)->where('is_bronze', false)->get()->flatMap(fn ($b) => [$b->slot_a_id, $b->slot_b_id])->filter();
+        $this->assertCount(5, $placed->unique());
 
         while ($bout = $category->bouts()->orderBy('number')->get()->first(fn ($b) => $b->isReady())) {
             $this->put(route('panel.bouts.result', [$event, $category, $bout]), ['winner_id' => $bout->slot_a_id])
                 ->assertSessionHasNoErrors();
         }
 
-        // Todos los combates reales (no pases) se han resuelto: con 5 participantes hay 2 combates de primera ronda, 1 semifinal y 1 final; el bronce es automático (la otra semifinal es un pase).
+        // Todos los combates reales se han resuelto: con 5 participantes hay 1 de ronda previa, 2 semifinales, la final y el bronce.
         $real = $category->bouts()->where('required_participants', 2)->get();
-        $this->assertCount(4, $real, 'cinco competidores → cuatro combates reales');
+        $this->assertCount(5, $real, 'cinco competidores → cinco combates reales');
         $this->assertCount(0, $real->filter(fn ($b) => $b->winner_id === null), 'ningún combate real sin ganador');
 
         $final = $category->bouts()->get()->first(fn ($b) => $b->isFinal());
@@ -99,7 +99,7 @@ class FirstMilestoneTest extends TestCase
                 $rows[(int) $piece[0]] = explode('<ul class="list-group', $piece)[0];
             }
         }
-        $this->assertCount(3, $rows, 'el podio tiene tres puestos (no hay combate por el bronce con 5)');
+        $this->assertCount(3, $rows, 'el podio tiene tres puestos (un único bronce: hay combate por el 3.er puesto)');
         foreach ($podium as $place => $expected) {
             $row = $rows[$place];
             $this->assertStringContainsString($place.'.º', $row);
