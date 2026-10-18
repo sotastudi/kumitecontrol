@@ -21,6 +21,8 @@ class PublicRegistrationRequest extends RegistrationRequest
     /** El club de la inscripción es siempre el de la cuenta, aunque el formulario envíe otro. */
     protected function prepareForValidation(): void
     {
+        parent::prepareForValidation();
+
         if (($club = $this->approvedClubName()) !== null) {
             $this->merge(['club' => $club]);
         }

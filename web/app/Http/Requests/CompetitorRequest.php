@@ -16,6 +16,14 @@ class CompetitorRequest extends FormRequest
         return true; // La propiedad se comprueba en el middleware can:manage,event.
     }
 
+    /** photo_public es NOT NULL: un valor vacío se descarta para conservar el valor por defecto. */
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('photo_public') && $this->input('photo_public') === null) {
+            $this->request->remove('photo_public');
+        }
+    }
+
     public function rules(): array
     {
         return [
@@ -32,6 +40,7 @@ class CompetitorRequest extends FormRequest
             'guardian_contact' => ['nullable', 'string', 'max:255'],
             'photo' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp', 'max:3072'],
             'remove_photo' => ['boolean'],
+            'photo_public' => ['boolean'],
             'notes' => ['nullable', 'string', 'max:2000'],
         ];
     }

@@ -14,6 +14,14 @@ class RegistrationRequest extends FormRequest
         return true; // Panel: la propiedad la comprueba can:manage,event. Público: PublicRegistrationRequest exige inscripción abierta.
     }
 
+    /** photo_public es NOT NULL: un valor vacío se descarta para conservar el valor por defecto. */
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('photo_public') && $this->input('photo_public') === null) {
+            $this->request->remove('photo_public');
+        }
+    }
+
     public function rules(): array
     {
         return [
@@ -29,6 +37,7 @@ class RegistrationRequest extends FormRequest
             'guardian_name' => ['nullable', 'string', 'max:150'],
             'guardian_contact' => ['nullable', 'string', 'max:255'],
             'guardian_consent' => ['nullable', 'boolean'],
+            'photo_public' => ['boolean'],
             'photo' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp', 'max:3072'],
             'category_id' => ['required', Rule::exists('categories', 'id')->where('event_id', $this->route('event')->id)],
         ];

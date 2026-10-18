@@ -2,7 +2,7 @@
 @section('title', 'Inscripción · '.$event->name)
 @section('content')
 <h1 class="h3 mb-3">Inscripción: {{ $event->name }}</h1>
-<div class="alert alert-info">Inscribes como club <strong>{{ $clubName }}</strong>. Los datos de contacto, la fecha de nacimiento y la foto no se publican.</div>
+<div class="alert alert-info">Inscribes como club <strong>{{ $clubName }}</strong>. Los datos de contacto y la fecha de nacimiento no se publican; la foto solo se muestra si el organizador lo permite y se marca en cada ficha.</div>
 <section class="card mb-4" id="plantel">
     <div class="card-body">
         <h2 class="h5">Agregar desde mis competidores</h2>
