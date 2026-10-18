@@ -101,9 +101,11 @@ class PublicEventController extends Controller
         return Storage::disk('local')->response($club->user->logo_path, null, ['X-Content-Type-Options' => 'nosniff', 'Cache-Control' => $event->isListed() ? 'public, max-age=3600' : 'private, max-age=600']);
     }
 
-    /** Foto pública de un inscrito (la implementa la tarea 3 del plan). */
+    /** Foto de un inscrito: solo si la regla de publicación se cumple y el fichero existe; caché privada (hay código de acceso). */
     public function competitorPhoto(Event $event, Competitor $competitor): StreamedResponse
     {
-        abort(404);
+        abort_unless($competitor->publicPhotoUrl($event) !== null && Storage::disk('local')->exists($competitor->photo_path), 404);
+
+        return Storage::disk('local')->response($competitor->photo_path, null, ['X-Content-Type-Options' => 'nosniff', 'Cache-Control' => 'private, max-age=600']);
     }
 }

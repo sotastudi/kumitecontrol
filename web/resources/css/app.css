@@ -166,3 +166,9 @@
 .club-name { display: inline-flex; align-items: center; vertical-align: middle; gap: .4rem; }
 .club-logo { vertical-align: middle; height: 1.5rem; width: auto; max-width: 3rem; object-fit: contain; border-radius: .2rem; }
 .tatami-bout .club-logo-corner { position: absolute; top: .75rem; right: .75rem; height: 3.5rem; max-width: 6rem; }
+
+/* Miniatura pública del inscrito */
+.competitor-photo { border-radius: 9999px; object-fit: cover; vertical-align: middle; }
+.competitor-photo-sm { width: 2rem; height: 2rem; }
+.competitor-photo-md { width: 3rem; height: 3rem; }
+.competitor-photo-lg { width: 5rem; height: 5rem; }
