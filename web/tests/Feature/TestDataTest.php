@@ -138,4 +138,80 @@ class TestDataTest extends TestCase
         $this->assertSame([], Storage::disk('local')->allFiles('club-logos'));
         $this->assertSame(0, $event->clubs()->count());
     }
+
+    private function names(Category $category): array
+    {
+        return Registration::where('category_id', $category->id)->with('competitor')->orderBy('id')->get()
+            ->map(fn ($r) => $r->competitor->first_name.' '.$r->competitor->last_name)->all();
+    }
+
+    private function catalogNames(string $key): array
+    {
+        return array_map(fn ($p) => $p['first_name'].' '.$p['last_name'], (new DemoCatalog)->competitors($key));
+    }
+
+    public function test_default_run_creates_twenty_named_registrations_with_photo_per_category(): void
+    {
+        [$user, $event] = $this->testEvent();
+        $category = Category::factory()->for($event)->create(['name' => 'Senior femenina', 'sex' => 'female', 'min_age' => 18, 'max_age' => null]);
+
+        $this->actingAs($user)->post(route('panel.test.registrations', $event), ['category_id' => $category->id, 'participants' => 20, 'clubs' => 8]);
+
+        $this->assertSame($this->catalogNames('senior-femenina'), $this->names($category));
+        $competitors = Competitor::where('event_id', $event->id)->get();
+        $this->assertSame(8, $competitors->pluck('club')->unique()->count());
+        $this->assertTrue($competitors->every(fn ($c) => $c->hasPhoto()));
+        $this->assertTrue($competitors->every(fn ($c) => $c->sex->value === 'female'));
+    }
+
+    public function test_second_run_continues_the_list_without_repeating_names(): void
+    {
+        [$user, $event] = $this->testEvent();
+        $category = Category::factory()->for($event)->create(['sex' => 'male', 'min_age' => 14, 'max_age' => 17]);
+
+        foreach ([12, 12] as $n) {
+            $this->actingAs($user)->post(route('panel.test.registrations', $event), ['category_id' => $category->id, 'participants' => $n, 'clubs' => 8]);
+        }
+
+        $names = $this->names($category);
+        $this->assertCount(24, $names);
+        $this->assertSame($this->catalogNames('junior-masculina'), array_slice($names, 0, 20));
+    }
+
+    public function test_more_than_the_catalog_falls_back_to_random_names_and_cycles_photos(): void
+    {
+        [$user, $event] = $this->testEvent();
+        $category = Category::factory()->for($event)->create(['name' => 'Infantil mixta', 'sex' => null, 'min_age' => 8, 'max_age' => 13]);
+
+        $this->actingAs($user)->post(route('panel.test.registrations', $event), ['category_id' => $category->id, 'participants' => 50, 'clubs' => 8])->assertSessionHasNoErrors();
+
+        $this->assertCount(50, $this->names($category));
+        $this->assertSame($this->catalogNames('infantil'), array_slice($this->names($category), 0, 20));
+        $this->assertTrue(Competitor::where('event_id', $event->id)->get()->every(fn ($c) => $c->hasPhoto()));
+    }
+
+    public function test_fewer_clubs_reassigns_competitors_of_dropped_clubs(): void
+    {
+        [$user, $event] = $this->testEvent();
+        $category = Category::factory()->for($event)->create(['sex' => 'female', 'min_age' => 14, 'max_age' => 17]);
+
+        $this->actingAs($user)->post(route('panel.test.registrations', $event), ['category_id' => $category->id, 'participants' => 20, 'clubs' => 3]);
+
+        $clubs = Competitor::where('event_id', $event->id)->pluck('club')->unique();
+        $this->assertCount(3, $clubs);
+        $this->assertEqualsCanonicalizing(array_slice((new DemoCatalog)->clubs(), 0, 3), $clubs->all());
+        $this->assertSame(3, $event->clubs()->count());
+    }
+
+    public function test_clean_deletes_competitor_photo_files(): void
+    {
+        [$user, $event] = $this->testEvent();
+        $category = Category::factory()->for($event)->create();
+
+        $this->actingAs($user)->post(route('panel.test.registrations', $event), ['category_id' => $category->id, 'participants' => 5, 'clubs' => 2]);
+        $this->assertCount(5, Storage::disk('local')->allFiles('competitor-photos'));
+
+        $this->delete(route('panel.test.clean', $event));
+        $this->assertSame([], Storage::disk('local')->allFiles('competitor-photos'));
+    }
 }

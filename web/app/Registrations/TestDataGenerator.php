@@ -78,10 +78,22 @@ final class TestDataGenerator
         $participants = max(1, min(self::MAX_PARTICIPANTS, $participants));
         $clubNames = $this->clubNames(max(1, $clubs));
 
-        DB::transaction(function () use ($category, $participants, $clubNames, $confirmed) {
+        $catalog = new DemoCatalog;
+        $key = $this->categoryKey($category);
+        $people = $catalog->competitors($key);
+        $group = ['infantil' => 'infantil', 'junior-masculina' => 'juvenil-masculino', 'junior-femenina' => 'juvenil-femenino', 'senior-masculina' => 'senior-masculino', 'senior-femenina' => 'senior-femenino'][$key];
+        // Continúa donde se quedó una tanda anterior: ni repite los nombres del listado ni las fotos.
+        $offset = Registration::where('category_id', $category->id)->whereHas('competitor', fn ($q) => $q->where('notes', self::MARK))->count();
+
+        DB::transaction(function () use ($category, $participants, $clubNames, $confirmed, $catalog, $people, $group, $offset) {
             self::ensureClubs($category->event, $clubNames);
             for ($i = 0; $i < $participants; $i++) {
-                $competitor = (new Competitor($this->competitorData($category, $clubNames[$i % count($clubNames)])))->forceFill(['event_id' => $category->event_id]);
+                $person = $people[$offset + $i] ?? null;
+                $club = $person && in_array($person['club'], $clubNames, true) ? $person['club'] : $clubNames[$i % count($clubNames)];
+                $competitor = (new Competitor($this->competitorData($category, $club, $person)))->forceFill([
+                    'event_id' => $category->event_id,
+                    'photo_path' => self::storeCopy($catalog->avatarPath($group, $offset + $i), 'competitor-photos'),
+                ]);
                 $competitor->save();
                 Registration::create([
                     'category_id' => $category->id,
@@ -116,7 +128,9 @@ final class TestDataGenerator
 
             DB::transaction(function () use ($registrations) {
                 Registration::whereIn('id', $registrations->pluck('id'))->delete();
-                Competitor::whereIn('id', $registrations->pluck('competitor_id'))->where('notes', self::MARK)->doesntHave('registrations')->delete();
+                $orphans = Competitor::whereIn('id', $registrations->pluck('competitor_id'))->where('notes', self::MARK)->doesntHave('registrations')->get();
+                Storage::disk('local')->delete($orphans->pluck('photo_path')->filter()->all());
+                Competitor::whereIn('id', $orphans->pluck('id'))->delete();
             });
             $removed += $registrations->count();
         }
@@ -208,8 +222,19 @@ final class TestDataGenerator
         return $names;
     }
 
+    /** Clave del grupo del catálogo: infantil (<14 años), junior (14–17) o senior, con el sexo de la categoría (sin sexo: masculina). */
+    private function categoryKey(Category $category): string
+    {
+        if (($category->min_age ?? 18) < 14) {
+            return 'infantil';
+        }
+        $gender = $category->sex === Sex::Female ? 'femenina' : 'masculina';
+
+        return ($category->min_age ?? 18) < 18 ? "junior-{$gender}" : "senior-{$gender}";
+    }
+
     /** @return array<string,mixed> */
-    private function competitorData(Category $category, string $club): array
+    private function competitorData(Category $category, string $club, ?array $person = null): array
     {
         $age = mt_rand($category->min_age ?? 14, $category->max_age ?? max(($category->min_age ?? 14) + 20, 40));
         $birth = $category->event->starts_on->copy()->subYears($age)->subDays(mt_rand(0, 364));
@@ -218,8 +243,8 @@ final class TestDataGenerator
         $maxWeight = $category->max_weight ?? 90;
 
         return [
-            'first_name' => self::FIRST[mt_rand(0, count(self::FIRST) - 1)],
-            'last_name' => self::LAST[mt_rand(0, count(self::LAST) - 1)].' '.self::LAST[mt_rand(0, count(self::LAST) - 1)],
+            'first_name' => $person['first_name'] ?? self::FIRST[mt_rand(0, count(self::FIRST) - 1)],
+            'last_name' => $person['last_name'] ?? self::LAST[mt_rand(0, count(self::LAST) - 1)].' '.self::LAST[mt_rand(0, count(self::LAST) - 1)],
             'birth_date' => $birth->toDateString(),
             'sex' => $category->sex?->value ?? (mt_rand(0, 1) ? Sex::Male->value : Sex::Female->value),
             'level' => $levels[mt_rand(0, count($levels) - 1)],
