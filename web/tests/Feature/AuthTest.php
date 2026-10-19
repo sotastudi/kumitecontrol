@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
@@ -73,6 +74,21 @@ class AuthTest extends TestCase
 
         $this->post('/acceso', ['email' => $user->email, 'password' => 'nueva-clave-123']);
         $this->assertAuthenticatedAs($user);
+    }
+
+    public function test_reset_link_survives_mail_failure(): void
+    {
+        // Esquema SMTP inválido, como en producción: el envío síncrono lanza al construir el transporte.
+        config(['mail.default' => 'smtp', 'mail.mailers.smtp.scheme' => 'tls', 'mail.mailers.smtp.url' => null]);
+        Log::spy();
+        $user = User::factory()->create();
+
+        $existing = $this->post('/recuperar-contrasena', ['email' => $user->email]);
+        $unknown = $this->post('/recuperar-contrasena', ['email' => 'nadie@example.com']);
+
+        $existing->assertRedirect()->assertSessionHas('status', __('passwords.sent'));
+        $unknown->assertRedirect()->assertSessionHas('status', __('passwords.sent'));
+        Log::shouldHaveReceived('error')->once();
     }
 
     public function test_reset_does_not_reveal_whether_the_email_exists(): void
