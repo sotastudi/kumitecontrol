@@ -128,7 +128,7 @@
         <path d="M9.5 21h5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
     </symbol>
 </svg>
-<nav class="navbar navbar-expand-md bg-body border-bottom mb-4">
+<nav class="navbar navbar-expand-md bg-body border-bottom mb-4 sticky-top">
     <div class="container">
         <a class="navbar-brand" href="{{ route('home') }}" aria-label="KumiteControl">
             {{-- Logo horizontal desde tablet (md) hacia arriba; icono en móvil. Claro/oscuro según el tema activo. --}}

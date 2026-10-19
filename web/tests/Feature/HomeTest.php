@@ -41,6 +41,11 @@ class HomeTest extends TestCase
         $this->get(route('login'))->assertSee(route('register'), false);
     }
 
+    public function test_site_header_is_sticky(): void
+    {
+        $this->get(route('home'))->assertOk()->assertSee('<nav class="navbar navbar-expand-md bg-body border-bottom mb-4 sticky-top">', false);
+    }
+
     public function test_signed_in_users_get_the_panel_button_in_the_header(): void
     {
         $user = User::factory()->create();

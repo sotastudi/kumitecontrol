@@ -125,6 +125,17 @@ class Event extends Model
         $query->where('is_public', true)->where('status', '!=', EventStatus::Draft->value);
     }
 
+    /** Eventos de hoy en adelante: pasan a «pasados» al día siguiente de su fecha. */
+    public function scopeUpcoming(Builder $query): void
+    {
+        $query->whereDate('starts_on', '>=', today());
+    }
+
+    public function scopePast(Builder $query): void
+    {
+        $query->whereDate('starts_on', '<', today());
+    }
+
     public function isListed(): bool
     {
         return $this->is_public && $this->status !== EventStatus::Draft;
