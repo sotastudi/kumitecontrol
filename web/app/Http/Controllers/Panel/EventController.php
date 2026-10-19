@@ -64,6 +64,7 @@ class EventController extends Controller
         return view('panel.events.show', [
             'event' => $event->load(['operators.user', 'categories' => fn ($q) => $q->orderBy('name')->withCount([
                 'registrations as confirmed_count' => fn ($r) => $r->where('status', RegistrationStatus::Confirmed->value),
+                'bouts',
             ])]),
             'tatamis' => $board->for($event),
             'bibsProblem' => $bibs->blockingProblem($event),
