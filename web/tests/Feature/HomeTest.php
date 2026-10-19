@@ -35,6 +35,12 @@ class HomeTest extends TestCase
         $this->get(route('login'))->assertOk()->assertSee('Registrarse (crear cuenta)')->assertSee(route('register'), false);
     }
 
+    public function test_main_menu_has_no_register_link_for_guests(): void
+    {
+        $this->get(route('home'))->assertOk()->assertDontSee('href="'.route('register').'"', false);
+        $this->get(route('login'))->assertSee(route('register'), false);
+    }
+
     public function test_signed_in_users_get_the_panel_button_in_the_header(): void
     {
         $user = User::factory()->create();
