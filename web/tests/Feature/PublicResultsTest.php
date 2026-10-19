@@ -48,6 +48,30 @@ class PublicResultsTest extends TestCase
         $this->assertFalse($category->fresh()->is_published);
     }
 
+    public function test_event_page_disables_publish_until_the_category_has_a_bracket(): void
+    {
+        $user = User::factory()->create();
+        $event = Event::factory()->for($user)->create();
+        $empty = Category::factory()->for($event)->create();
+        $publishUrl = route('panel.categories.publication', [$event, $empty]);
+
+        $this->actingAs($user)->get(route('panel.events.show', $event))
+            ->assertSee('title="Genera el cuadro antes de publicar"', false)
+            ->assertDontSee($publishUrl, false);
+
+        // Una categoría ya publicada que se queda sin cuadro conserva «Ocultar».
+        $empty->forceFill(['is_published' => true])->save();
+        $this->get(route('panel.events.show', $event))
+            ->assertSee($publishUrl, false)
+            ->assertDontSee('Genera el cuadro antes de publicar');
+
+        $category = $this->generated(4);
+        $category->event->forceFill(['user_id' => $user->id])->save();
+        $this->get(route('panel.events.show', $category->event))
+            ->assertSee(route('panel.categories.publication', [$category->event, $category]), false)
+            ->assertDontSee('Genera el cuadro antes de publicar');
+    }
+
     public function test_public_pages_show_bracket_and_podium_but_never_private_data(): void
     {
         $category = $this->playedCategory();

@@ -92,6 +92,11 @@
                                 <button name="status" value="rejected" class="btn btn-sm btn-outline-secondary">Rechazar</button>
                             @endif
                         </form>
+                        @if ($club->status === \App\Enums\ClubStatus::Rejected)
+                            <form method="POST" action="{{ route('panel.clubs.destroy', [$event, $club]) }}" class="d-inline" onsubmit="return confirm('¿Eliminar este club de la lista del evento?')">@csrf @method('DELETE')
+                                <button class="btn btn-sm btn-outline-danger">Eliminar</button>
+                            </form>
+                        @endif
                         @if ($club->status === \App\Enums\ClubStatus::Invited)
                             <form method="POST" action="{{ route('panel.clubs.resend', [$event, $club]) }}" class="d-inline">@csrf
                                 <button class="btn btn-sm btn-outline-primary">Reenviar invitación</button>

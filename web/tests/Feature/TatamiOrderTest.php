@@ -134,7 +134,7 @@ class TatamiOrderTest extends TestCase
         $this->assertMatchesRegularExpression('#btn btn-blue btn-sm btn-icon"><svg[^>]*><use href="\#sitemap"/></svg> Cuadro#', $html);
         $this->assertMatchesRegularExpression('#btn btn-yellow btn-sm btn-icon"><svg[^>]*><use href="\#pencil"/></svg> Editar#', $html);
         $this->assertMatchesRegularExpression('#btn btn-outline-danger btn-sm btn-icon"><svg[^>]*><use href="\#trash"/></svg> Eliminar#', $html);
-        $this->assertMatchesRegularExpression('#btn btn-outline-success btn-sm btn-icon"><svg[^>]*><use href="\#share"/></svg> Publicar#', $html);
+        $this->assertMatchesRegularExpression('#btn btn-outline-success btn-sm btn-icon"[^>]*><svg[^>]*><use href="\#share"/></svg> Publicar#', $html);
         foreach (['pencil', 'sitemap', 'trash', 'share'] as $icon) {
             $this->assertStringContainsString('<symbol id="'.$icon.'"', $html);
         }

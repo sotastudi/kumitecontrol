@@ -121,6 +121,7 @@ Route::middleware('auth')->prefix('panel')->name('panel.')->group(function () {
         Route::put('clubes/{club}/cuenta', [ClubController::class, 'account'])->name('clubs.account');
         Route::put('clubes/{club}/color', [ClubController::class, 'color'])->name('clubs.color');
         Route::put('clubes/{club}', [ClubController::class, 'update'])->name('clubs.update');
+        Route::delete('clubes/{club}', [ClubController::class, 'destroy'])->name('clubs.destroy');
         Route::get('normas.pdf', [EventController::class, 'rules'])->name('events.rules');
         Route::get('poster', [EventController::class, 'poster'])->name('events.poster');
         Route::get('editar', [EventController::class, 'edit'])->name('events.edit');

@@ -101,11 +101,15 @@
                             @if ($category->is_published && $event->isListed())
                                 <a href="{{ route('public.categories.show', [$event, $category]) }}" class="btn btn-outline-secondary btn-sm btn-icon" title="Ver página pública" aria-label="Ver página pública"><svg width="16" height="16" aria-hidden="true"><use href="#eye"/></svg> Ver</a>
                             @endif
+                            @if (! $category->is_published && $category->bouts_count === 0)
+                                <button type="button" class="btn btn-outline-success btn-sm btn-icon" disabled title="Genera el cuadro antes de publicar"><svg width="16" height="16" aria-hidden="true"><use href="#share"/></svg> Publicar</button>
+                            @else
                             <form method="POST" action="{{ route('panel.categories.publication', [$event, $category]) }}" class="d-inline">
                                 @csrf
                                 @method('PATCH')
                                 <button type="submit" class="btn btn-outline-success btn-sm btn-icon"><svg width="16" height="16" aria-hidden="true"><use href="#share"/></svg> {{ $category->is_published ? 'Ocultar' : 'Publicar' }}</button>
                             </form>
+                            @endif
                             <a href="{{ route('panel.categories.edit', [$event, $category]) }}" class="btn btn-yellow btn-sm btn-icon"><svg width="16" height="16" aria-hidden="true"><use href="#pencil"/></svg> Editar</a>
                             <form method="POST" action="{{ route('panel.categories.destroy', [$event, $category]) }}" class="d-inline" onsubmit="return confirm('¿Eliminar la categoría? Se borrarán también su cuadro, combates e inscripciones.')">
                                 @csrf
