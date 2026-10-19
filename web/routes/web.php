@@ -19,6 +19,7 @@ use App\Http\Controllers\Panel\CompetitorController;
 use App\Http\Controllers\Panel\EventController;
 use App\Http\Controllers\Panel\ExportController;
 use App\Http\Controllers\Panel\InvitationController;
+use App\Http\Controllers\Panel\MyOperatorsController;
 use App\Http\Controllers\Panel\ProfileController;
 use App\Http\Controllers\Panel\PublicationController;
 use App\Http\Controllers\Panel\RegistrationController;
@@ -44,6 +45,8 @@ Route::post('eventos/{event:slug}/codigo', [PublicEventController::class, 'acces
     ->middleware('throttle:10,1')->name('public.events.access');
 Route::get('eventos/{event:slug}/categorias/{category}', [PublicCategoryController::class, 'show'])
     ->middleware(EnsureResultsAccess::class)->scopeBindings()->name('public.categories.show');
+Route::get('eventos/{event:slug}/competidores/{competitor}/foto', [PublicEventController::class, 'competitorPhoto'])
+    ->middleware(EnsureResultsAccess::class)->scopeBindings()->name('public.competitors.photo');
 Route::post('eventos/{event:slug}/inscripcion', [PublicRegistrationController::class, 'store'])
     ->middleware(['auth', 'throttle:10,1'])->name('public.registration.store');
 Route::post('eventos/{event:slug}/inscripcion/plantel', [PublicRegistrationController::class, 'fromRoster'])
@@ -83,6 +86,11 @@ Route::middleware('auth')->prefix('panel')->name('panel.')->group(function () {
     Route::get('perfil/logo', [ProfileController::class, 'logo'])->name('profile.logo.show');
     Route::put('perfil/logo', [ProfileController::class, 'updateLogo'])->name('profile.logo');
     Route::put('perfil/contrasena', [ProfileController::class, 'updatePassword'])->middleware('throttle:6,1')->name('profile.password');
+    Route::get('controladores', [MyOperatorsController::class, 'index'])->name('my-operators.index');
+    Route::post('controladores', [MyOperatorsController::class, 'store'])->name('my-operators.store');
+    Route::put('controladores/{operator}', [MyOperatorsController::class, 'update'])->name('my-operators.update');
+    Route::delete('controladores/{operator}', [MyOperatorsController::class, 'destroy'])->name('my-operators.destroy');
+    Route::put('controladores/{operator}/eventos/{event}', [MyOperatorsController::class, 'assign'])->name('my-operators.assign');
     Route::get('eventos', [EventController::class, 'index'])->name('events.index');
     Route::get('eventos/crear', [EventController::class, 'create'])->name('events.create');
     Route::post('eventos', [EventController::class, 'store'])->name('events.store');
@@ -97,6 +105,7 @@ Route::middleware('auth')->prefix('panel')->name('panel.')->group(function () {
     Route::middleware('can:manage,event')->scopeBindings()->prefix('eventos/{event}')->group(function () {
         Route::get('/', [EventController::class, 'show'])->name('events.show');
         Route::post('dorsales', [EventController::class, 'assignBibs'])->name('events.bibs');
+        Route::post('cerrar-inscripciones', [EventController::class, 'closeRegistrations'])->name('events.close-registrations');
         Route::post('codigo-acceso', [EventController::class, 'regenerateAccessCode'])->name('events.access-code');
         Route::post('controladores-tatami', [TatamiOperatorController::class, 'store'])->name('operators.store');
         Route::delete('controladores-tatami/{operator}', [TatamiOperatorController::class, 'destroy'])->name('operators.destroy');

@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Enums\Sex;
+use App\Http\Requests\Concerns\DiscardsEmptyPhotoPublic;
 use App\Models\Competitor;
 use App\Support\MartialLevels;
 use Illuminate\Foundation\Http\FormRequest;
@@ -11,6 +12,8 @@ use Illuminate\Validation\Validator;
 
 class CompetitorRequest extends FormRequest
 {
+    use DiscardsEmptyPhotoPublic;
+
     public function authorize(): bool
     {
         return true; // La propiedad se comprueba en el middleware can:manage,event.
@@ -32,6 +35,7 @@ class CompetitorRequest extends FormRequest
             'guardian_contact' => ['nullable', 'string', 'max:255'],
             'photo' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp', 'max:3072'],
             'remove_photo' => ['boolean'],
+            'photo_public' => ['boolean'],
             'notes' => ['nullable', 'string', 'max:2000'],
         ];
     }

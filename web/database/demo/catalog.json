@@ -1,0 +1,540 @@
+{
+ "clubs": [
+  "Dojo Kame Senryu",
+  "Club Dojo Konoha Budo",
+  "Gimnasio Piratas del Sol",
+  "Escuela Nichirin de Kyokushin",
+  "Dojo Red Ribbon Martial Arts",
+  "Asociación Akatsuki Karate",
+  "Club de Artes Marciales Marineford",
+  "Dojo Cuerpos de Cazadores"
+ ],
+ "aliases": {
+  "Escuela Nichirin": "Escuela Nichirin de Kyokushin",
+  "Dojo Red Ribbon": "Dojo Red Ribbon Martial Arts",
+  "Asociación Akatsuki": "Asociación Akatsuki Karate",
+  "Club Marítimo Marineford": "Club de Artes Marciales Marineford"
+ },
+ "categories": {
+  "infantil": [
+   {
+    "first_name": "Gohan",
+    "last_name": "Son",
+    "club": "Dojo Kame Senryu"
+   },
+   {
+    "first_name": "Goten",
+    "last_name": "Son",
+    "club": "Dojo Kame Senryu"
+   },
+   {
+    "first_name": "Trunks",
+    "last_name": "Briefs",
+    "club": "Dojo Red Ribbon"
+   },
+   {
+    "first_name": "Pan",
+    "last_name": "Son",
+    "club": "Dojo Kame Senryu"
+   },
+   {
+    "first_name": "Bulla",
+    "last_name": "Briefs",
+    "club": "Dojo Red Ribbon"
+   },
+   {
+    "first_name": "Boruto",
+    "last_name": "Uzumaki",
+    "club": "Club Dojo Konoha Budo"
+   },
+   {
+    "first_name": "Himawari",
+    "last_name": "Uzumaki",
+    "club": "Club Dojo Konoha Budo"
+   },
+   {
+    "first_name": "Sarada",
+    "last_name": "Uchiha",
+    "club": "Club Dojo Konoha Budo"
+   },
+   {
+    "first_name": "Mitsuki",
+    "last_name": "Serpent",
+    "club": "Club Dojo Konoha Budo"
+   },
+   {
+    "first_name": "Shikadai",
+    "last_name": "Nara",
+    "club": "Club Dojo Konoha Budo"
+   },
+   {
+    "first_name": "Tama",
+    "last_name": "Kurozumi",
+    "club": "Gimnasio Piratas del Sol"
+   },
+   {
+    "first_name": "Momonosuke",
+    "last_name": "Kozuki",
+    "club": "Gimnasio Piratas del Sol"
+   },
+   {
+    "first_name": "Sabo",
+    "last_name": "Revolución",
+    "club": "Gimnasio Piratas del Sol"
+   },
+   {
+    "first_name": "Aisa",
+    "last_name": "Shandora",
+    "club": "Gimnasio Piratas del Sol"
+   },
+   {
+    "first_name": "Chimney",
+    "last_name": "Water",
+    "club": "Gimnasio Piratas del Sol"
+   },
+   {
+    "first_name": "Shigeru",
+    "last_name": "Kamado",
+    "club": "Escuela Nichirin"
+   },
+   {
+    "first_name": "Hanako",
+    "last_name": "Kamado",
+    "club": "Escuela Nichirin"
+   },
+   {
+    "first_name": "Rokuta",
+    "last_name": "Kamado",
+    "club": "Escuela Nichirin"
+   },
+   {
+    "first_name": "Senjuro",
+    "last_name": "Rengoku",
+    "club": "Dojo Cuerpos de Cazadores"
+   },
+   {
+    "first_name": "Kotetsu",
+    "last_name": "Swordsmith",
+    "club": "Escuela Nichirin"
+   }
+  ],
+  "junior-masculina": [
+   {
+    "first_name": "Naruto",
+    "last_name": "Uzumaki",
+    "club": "Club Dojo Konoha Budo"
+   },
+   {
+    "first_name": "Sasuke",
+    "last_name": "Uchiha",
+    "club": "Club Dojo Konoha Budo"
+   },
+   {
+    "first_name": "Rock",
+    "last_name": "Lee",
+    "club": "Club Dojo Konoha Budo"
+   },
+   {
+    "first_name": "Neji",
+    "last_name": "Hyuga",
+    "club": "Club Dojo Konoha Budo"
+   },
+   {
+    "first_name": "Gaara",
+    "last_name": "Sabaku",
+    "club": "Club Dojo Konoha Budo"
+   },
+   {
+    "first_name": "Monkey",
+    "last_name": "D. Luffy",
+    "club": "Gimnasio Piratas del Sol"
+   },
+   {
+    "first_name": "Roronoa",
+    "last_name": "Zoro",
+    "club": "Gimnasio Piratas del Sol"
+   },
+   {
+    "first_name": "Vinsmoke",
+    "last_name": "Sanji",
+    "club": "Gimnasio Piratas del Sol"
+   },
+   {
+    "first_name": "Usopp",
+    "last_name": "Yasoppson",
+    "club": "Gimnasio Piratas del Sol"
+   },
+   {
+    "first_name": "Portgas",
+    "last_name": "D. Ace",
+    "club": "Gimnasio Piratas del Sol"
+   },
+   {
+    "first_name": "Tanjiro",
+    "last_name": "Kamado",
+    "club": "Escuela Nichirin"
+   },
+   {
+    "first_name": "Zenitsu",
+    "last_name": "Agatsuma",
+    "club": "Escuela Nichirin"
+   },
+   {
+    "first_name": "Inosuke",
+    "last_name": "Hashibira",
+    "club": "Dojo Cuerpos de Cazadores"
+   },
+   {
+    "first_name": "Genya",
+    "last_name": "Shinazugawa",
+    "club": "Dojo Cuerpos de Cazadores"
+   },
+   {
+    "first_name": "Muichiro",
+    "last_name": "Tokito",
+    "club": "Escuela Nichirin"
+   },
+   {
+    "first_name": "Uub",
+    "last_name": "Papaya",
+    "club": "Dojo Kame Senryu"
+   },
+   {
+    "first_name": "Sharpner",
+    "last_name": "Orange",
+    "club": "Dojo Red Ribbon"
+   },
+   {
+    "first_name": "Tarble",
+    "last_name": "Briefs",
+    "club": "Dojo Red Ribbon"
+   },
+   {
+    "first_name": "Kiba",
+    "last_name": "Inuzuka",
+    "club": "Club Dojo Konoha Budo"
+   },
+   {
+    "first_name": "Choji",
+    "last_name": "Akimichi",
+    "club": "Club Dojo Konoha Budo"
+   }
+  ],
+  "junior-femenina": [
+   {
+    "first_name": "Nezuko",
+    "last_name": "Kamado",
+    "club": "Escuela Nichirin"
+   },
+   {
+    "first_name": "Kanao",
+    "last_name": "Tsuyuri",
+    "club": "Escuela Nichirin"
+   },
+   {
+    "first_name": "Aoi",
+    "last_name": "Kanzaki",
+    "club": "Escuela Nichirin"
+   },
+   {
+    "first_name": "Sakura",
+    "last_name": "Haruno",
+    "club": "Club Dojo Konoha Budo"
+   },
+   {
+    "first_name": "Hinata",
+    "last_name": "Hyuga",
+    "club": "Club Dojo Konoha Budo"
+   },
+   {
+    "first_name": "Tenten",
+    "last_name": "Takagaki",
+    "club": "Club Dojo Konoha Budo"
+   },
+   {
+    "first_name": "Ino",
+    "last_name": "Yamanaka",
+    "club": "Club Dojo Konoha Budo"
+   },
+   {
+    "first_name": "Temari",
+    "last_name": "Sabaku",
+    "club": "Club Dojo Konoha Budo"
+   },
+   {
+    "first_name": "Nami",
+    "last_name": "Navigator",
+    "club": "Gimnasio Piratas del Sol"
+   },
+   {
+    "first_name": "Nefertari",
+    "last_name": "Vivi",
+    "club": "Gimnasio Piratas del Sol"
+   },
+   {
+    "first_name": "Koala",
+    "last_name": "Revolution",
+    "club": "Gimnasio Piratas del Sol"
+   },
+   {
+    "first_name": "Rebecca",
+    "last_name": "Riku",
+    "club": "Gimnasio Piratas del Sol"
+   },
+   {
+    "first_name": "Carrot",
+    "last_name": "Mink",
+    "club": "Gimnasio Piratas del Sol"
+   },
+   {
+    "first_name": "Videl",
+    "last_name": "Satan",
+    "club": "Dojo Kame Senryu"
+   },
+   {
+    "first_name": "C-18",
+    "last_name": "Lazuli",
+    "club": "Dojo Red Ribbon"
+   },
+   {
+    "first_name": "Kagura",
+    "last_name": "Tsuki",
+    "club": "Escuela Nichirin"
+   },
+   {
+    "first_name": "Makomo",
+    "last_name": "Water",
+    "club": "Escuela Nichirin"
+   },
+   {
+    "first_name": "Karui",
+    "last_name": "Kumogakure",
+    "club": "Asociación Akatsuki"
+   },
+   {
+    "first_name": "Matsuri",
+    "last_name": "Sand",
+    "club": "Club Dojo Konoha Budo"
+   },
+   {
+    "first_name": "Kurotsuchi",
+    "last_name": "Iwa",
+    "club": "Club Dojo Konoha Budo"
+   }
+  ],
+  "senior-masculina": [
+   {
+    "first_name": "Son",
+    "last_name": "Goku",
+    "club": "Dojo Kame Senryu"
+   },
+   {
+    "first_name": "Vegeta",
+    "last_name": "Ou",
+    "club": "Dojo Red Ribbon"
+   },
+   {
+    "first_name": "Piccolo",
+    "last_name": "Daimaou",
+    "club": "Dojo Kame Senryu"
+   },
+   {
+    "first_name": "Ten",
+    "last_name": "Shin Han",
+    "club": "Dojo Kame Senryu"
+   },
+   {
+    "first_name": "Yamcha",
+    "last_name": "Wolf",
+    "club": "Dojo Kame Senryu"
+   },
+   {
+    "first_name": "Kakashi",
+    "last_name": "Hatake",
+    "club": "Club Dojo Konoha Budo"
+   },
+   {
+    "first_name": "Might",
+    "last_name": "Guy",
+    "club": "Club Dojo Konoha Budo"
+   },
+   {
+    "first_name": "Jiraiya",
+    "last_name": "Toad",
+    "club": "Club Dojo Konoha Budo"
+   },
+   {
+    "first_name": "Itachi",
+    "last_name": "Uchiha",
+    "club": "Asociación Akatsuki"
+   },
+   {
+    "first_name": "Kisame",
+    "last_name": "Hoshigaki",
+    "club": "Asociación Akatsuki"
+   },
+   {
+    "first_name": "Jinbe",
+    "last_name": "Whale",
+    "club": "Gimnasio Piratas del Sol"
+   },
+   {
+    "first_name": "Trafalgar",
+    "last_name": "D. Law",
+    "club": "Gimnasio Piratas del Sol"
+   },
+   {
+    "first_name": "Katakuri",
+    "last_name": "Charlotte",
+    "club": "Gimnasio Piratas del Sol"
+   },
+   {
+    "first_name": "Rob",
+    "last_name": "Lucci",
+    "club": "Club Marítimo Marineford"
+   },
+   {
+    "first_name": "Smoker",
+    "last_name": "White",
+    "club": "Club Marítimo Marineford"
+   },
+   {
+    "first_name": "Kyojuro",
+    "last_name": "Rengoku",
+    "club": "Dojo Cuerpos de Cazadores"
+   },
+   {
+    "first_name": "Giyu",
+    "last_name": "Tomioka",
+    "club": "Escuela Nichirin"
+   },
+   {
+    "first_name": "Sanemi",
+    "last_name": "Shinazugawa",
+    "club": "Dojo Cuerpos de Cazadores"
+   },
+   {
+    "first_name": "Tengen",
+    "last_name": "Uzui",
+    "club": "Dojo Cuerpos de Cazadores"
+   },
+   {
+    "first_name": "Gyomei",
+    "last_name": "Himejima",
+    "club": "Dojo Cuerpos de Cazadores"
+   }
+  ],
+  "senior-femenina": [
+   {
+    "first_name": "Tsunade",
+    "last_name": "Senju",
+    "club": "Club Dojo Konoha Budo"
+   },
+   {
+    "first_name": "Mei",
+    "last_name": "Terumi",
+    "club": "Club Dojo Konoha Budo"
+   },
+   {
+    "first_name": "Konan",
+    "last_name": "Paper",
+    "club": "Asociación Akatsuki"
+   },
+   {
+    "first_name": "Kurenai",
+    "last_name": "Yuhi",
+    "club": "Club Dojo Konoha Budo"
+   },
+   {
+    "first_name": "Anko",
+    "last_name": "Mitarashi",
+    "club": "Club Dojo Konoha Budo"
+   },
+   {
+    "first_name": "Nico",
+    "last_name": "Robin",
+    "club": "Gimnasio Piratas del Sol"
+   },
+   {
+    "first_name": "Boa",
+    "last_name": "Hancock",
+    "club": "Gimnasio Piratas del Sol"
+   },
+   {
+    "first_name": "Yamato",
+    "last_name": "Kaido",
+    "club": "Gimnasio Piratas del Sol"
+   },
+   {
+    "first_name": "Gion",
+    "last_name": "Pink",
+    "club": "Club Marítimo Marineford"
+   },
+   {
+    "first_name": "Tsuru",
+    "last_name": "Vice",
+    "club": "Club Marítimo Marineford"
+   },
+   {
+    "first_name": "Shinobu",
+    "last_name": "Kocho",
+    "club": "Escuela Nichirin"
+   },
+   {
+    "first_name": "Mitsuri",
+    "last_name": "Kanroji",
+    "club": "Dojo Cuerpos de Cazadores"
+   },
+   {
+    "first_name": "Tamayo",
+    "last_name": "Doctor",
+    "club": "Escuela Nichirin"
+   },
+   {
+    "first_name": "Kanae",
+    "last_name": "Kocho",
+    "club": "Escuela Nichirin"
+   },
+   {
+    "first_name": "Suma",
+    "last_name": "Uzui",
+    "club": "Dojo Cuerpos de Cazadores"
+   },
+   {
+    "first_name": "Chi-Chi",
+    "last_name": "Ox",
+    "club": "Dojo Kame Senryu"
+   },
+   {
+    "first_name": "Bulma",
+    "last_name": "Briefs",
+    "club": "Dojo Red Ribbon"
+   },
+   {
+    "first_name": "Lunch",
+    "last_name": "Blonde",
+    "club": "Dojo Kame Senryu"
+   },
+   {
+    "first_name": "Suki",
+    "last_name": "Kyoshi",
+    "club": "Club Dojo Konoha Budo"
+   },
+   {
+    "first_name": "Yoruichi",
+    "last_name": "Shihoin",
+    "club": "Dojo Cuerpos de Cazadores"
+   }
+  ]
+ },
+ "logos": {
+  "Club Dojo Konoha Budo": "01.jpg",
+  "Gimnasio Piratas del Sol": "02.jpg",
+  "Dojo Cuerpos de Cazadores": "03.jpg",
+  "Escuela Nichirin de Kyokushin": "04.jpg",
+  "Asociación Akatsuki Karate": "05.jpg",
+  "Club de Artes Marciales Marineford": "06.jpg",
+  "Dojo Kame Senryu": "07.jpg",
+  "Dojo Red Ribbon Martial Arts": "08.jpg"
+ }
+}

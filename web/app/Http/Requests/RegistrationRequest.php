@@ -3,12 +3,15 @@
 namespace App\Http\Requests;
 
 use App\Enums\Sex;
+use App\Http\Requests\Concerns\DiscardsEmptyPhotoPublic;
 use App\Support\MartialLevels;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class RegistrationRequest extends FormRequest
 {
+    use DiscardsEmptyPhotoPublic;
+
     public function authorize(): bool
     {
         return true; // Panel: la propiedad la comprueba can:manage,event. Público: PublicRegistrationRequest exige inscripción abierta.
@@ -29,6 +32,7 @@ class RegistrationRequest extends FormRequest
             'guardian_name' => ['nullable', 'string', 'max:150'],
             'guardian_contact' => ['nullable', 'string', 'max:255'],
             'guardian_consent' => ['nullable', 'boolean'],
+            'photo_public' => ['boolean'],
             'photo' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp', 'max:3072'],
             'category_id' => ['required', Rule::exists('categories', 'id')->where('event_id', $this->route('event')->id)],
         ];

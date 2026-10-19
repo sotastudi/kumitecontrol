@@ -7,6 +7,7 @@ use App\Enums\DisqualifiedPodiumRule;
 use App\Enums\DrawCriteria;
 use App\Enums\EventStatus;
 use App\Enums\PreResultsWithdrawalRule;
+use App\Enums\RegistrationStatus;
 use App\Enums\UnfoughtWithdrawalRule;
 use Database\Factories\EventFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -21,7 +22,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 #[Fillable(['name', 'discipline', 'description', 'starts_on', 'start_time', 'venue', 'status', 'is_public', 'registration_form_enabled', 'is_test',
-    'dq_podium_rule', 'unfought_withdrawal_rule', 'default_bronze_rule', 'withdrawal_before_results_rule', 'draw_criteria', 'registration_opens_at', 'registration_closes_at', 'tatami_count', 'rules_text'])]
+    'dq_podium_rule', 'unfought_withdrawal_rule', 'default_bronze_rule', 'withdrawal_before_results_rule', 'draw_criteria', 'registration_opens_at', 'registration_closes_at', 'tatami_count', 'rules_text', 'show_photos_publicly'])]
 class Event extends Model
 {
     /** @var array<string,int>|null cache por petición de clubLogoUrl() */
@@ -36,6 +37,7 @@ class Event extends Model
     protected function casts(): array
     {
         return [
+            'show_photos_publicly' => 'boolean',
             'starts_on' => 'date',
             'status' => EventStatus::class,
             'is_public' => 'boolean',
@@ -110,6 +112,12 @@ class Event extends Model
     public function registrations(): HasManyThrough
     {
         return $this->hasManyThrough(Registration::class, Category::class);
+    }
+
+    /** Inscripciones del evento aún sin confirmar ni cancelar. */
+    public function pendingRegistrationsCount(): int
+    {
+        return $this->registrations()->where('registrations.status', RegistrationStatus::Pending->value)->count();
     }
 
     public function scopeListed(Builder $query): void

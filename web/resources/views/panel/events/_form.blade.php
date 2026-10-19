@@ -39,6 +39,8 @@
          help="Un evento público y no en borrador aparece en la portada y tiene página pública." />
 <x-check name="registration_form_enabled" label="Habilitar formulario público de inscripción" :checked="$event?->registration_form_enabled ?? false"
          help="Solo funciona con el evento público y en estado «Inscripciones abiertas». Ver docs/menores.md." />
+<x-check name="show_photos_publicly" label="Mostrar públicamente las fotos de los inscritos" :checked="$event?->show_photos_publicly ?? false"
+         help="Cada participante decide además si su foto se muestra (casilla en su ficha). Los menores solo si su representante ha dado su consentimiento." />
 <x-select name="tatami_count" label="Número de tatamis" :options="array_combine(range(1, 10), range(1, 10))" :value="$event?->tatamiCount() ?? 1" required />
 <div class="form-text mb-3" style="margin-top: -.75rem">De 1 a 10. Cada categoría se asigna a un tatami en su formulario. No hay calendario automático.</div>
 <div class="row">

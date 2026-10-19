@@ -54,6 +54,7 @@ class ClubColorTest extends TestCase
 
     public function test_demo_clubs_are_listed_with_color_and_removed_on_clean(): void
     {
+        \Illuminate\Support\Facades\Storage::fake('local');
         $owner = User::factory()->create();
         $event = Event::factory()->for($owner)->create(['is_test' => true]);
         $category = \App\Models\Category::factory()->for($event)->create();
@@ -62,8 +63,8 @@ class ClubColorTest extends TestCase
         $generator->registrations($category, 6, 3);
 
         $this->assertSame(3, $event->clubs()->where('status', 'approved')->count());
-        $this->actingAs($owner)->get(route('panel.clubs.index', $event))->assertSee('Dojo Norte')->assertSee('Club Sakura')->assertSee('Karate Sur');
-        $this->assertNotNull($event->fresh()->clubColor('Dojo Norte'));
+        $this->actingAs($owner)->get(route('panel.clubs.index', $event))->assertSee('Dojo Kame Senryu')->assertSee('Club Dojo Konoha Budo')->assertSee('Gimnasio Piratas del Sol');
+        $this->assertNotNull($event->fresh()->clubColor('Dojo Kame Senryu'));
 
         $generator->clean($event);
 

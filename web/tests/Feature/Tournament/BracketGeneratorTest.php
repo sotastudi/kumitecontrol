@@ -4,8 +4,11 @@ namespace Tests\Feature\Tournament;
 
 use App\Enums\BronzeRule;
 use App\Enums\RegistrationStatus;
+use App\Models\Bout;
+use App\Models\Category;
 use App\Models\Registration;
 use App\Tournament\BracketGenerator;
+use App\Tournament\ResultRecorder;
 use App\Tournament\TournamentException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\BuildsBrackets;
@@ -14,6 +17,13 @@ use Tests\TestCase;
 class BracketGeneratorTest extends TestCase
 {
     use BuildsBrackets, RefreshDatabase;
+
+    /** @return list<int> participantes colocados en la ronda previa y la siguiente (sin bronce) */
+    private function placed(Category $category): array
+    {
+        return $category->bouts()->where('round', '<=', 2)->where('is_bronze', false)->get()
+            ->flatMap(fn (Bout $b) => [$b->slot_a_id, $b->slot_b_id])->filter()->unique()->values()->all();
+    }
 
     public function test_zero_or_one_participant_generates_nothing_and_never_names_a_champion(): void
     {
@@ -36,7 +46,7 @@ class BracketGeneratorTest extends TestCase
 
         app(BracketGenerator::class)->generate($category);
 
-        $inBracket = $category->bouts()->where('round', 1)->get()->flatMap(fn ($b) => [$b->slot_a_id, $b->slot_b_id])->filter()->values()->all();
+        $inBracket = $this->placed($category);
         $this->assertCount(3, $inBracket);
         $this->assertEqualsCanonicalizing(
             $category->registrations()->where('status', 'confirmed')->pluck('id')->all(),
@@ -68,47 +78,122 @@ class BracketGeneratorTest extends TestCase
         $this->assertSame([1, 2, 3, 4], $category->bouts()->orderBy('number')->pluck('number')->all());
     }
 
-    public function test_five_participants_have_one_bye_per_round_at_most_and_it_advances_automatically(): void
+    public function test_five_participants_have_a_one_bout_prelim_semis_final_and_bronze(): void
     {
         $category = $this->generated(5);
         $ids = $category->registrations()->orderBy('id')->pluck('id');
 
-        // Ronda 1: pase + 2 combates; ronda 2: 1 combate + 1 pase; final; bronce (pase: solo hay una semifinal real).
-        $this->assertSame(7, $category->bouts()->count());
-        $r1 = $category->bouts()->where('round', 1)->orderBy('position')->get();
-        $this->assertCount(3, $r1);
-        $this->assertSame(1, $r1->where('required_participants', 1)->count());
-        $this->assertTrue($r1[0]->isBye() && $r1[0]->isCompleted() && $r1[0]->number === null);
-        $this->assertSame([$ids[1], $ids[2]], [$r1[1]->slot_a_id, $r1[1]->slot_b_id]);
-        $this->assertSame([$ids[3], $ids[4]], [$r1[2]->slot_a_id, $r1[2]->slot_b_id]);
+        // Orden identidad = mérito: los 3 primeros exentos, los 2 últimos disputan la previa.
+        $this->assertSame(5, $category->bouts()->count());
+        $this->assertSame(0, $category->bouts()->where('required_participants', 1)->count());
+        $prelim = $this->bout($category, 1, 1);
+        $this->assertTrue($prelim->is_prelim);
+        $this->assertSame([$ids[3], $ids[4]], [$prelim->slot_a_id, $prelim->slot_b_id]);
+        $this->assertSame(1, $prelim->number);
 
-        $semi = $this->bout($category, 2, 1);
-        $this->assertSame($ids[0], $semi->slot_a_id);   // el suelto pasa directo
-        $this->assertNull($semi->slot_b_id);            // espera al ganador del combate 2
-        $this->assertTrue($this->bout($category, 2, 2)->isBye());
+        $semi1 = $this->bout($category, 2, 1);
+        $semi2 = $this->bout($category, 2, 2);
+        $this->assertFalse($semi1->is_prelim);
+        $this->assertSame([$ids[0], null], [$semi1->slot_a_id, $semi1->slot_b_id]);   // la semilla 1 espera al ganador de la previa
+        $this->assertSame([$prelim->next_bout_id, $prelim->next_slot], [$semi1->id, 'b']);
+        $this->assertSame([$ids[2], $ids[1]], [$semi2->slot_a_id, $semi2->slot_b_id]);
+        $this->assertTrue($semi2->isReady());
 
-        // Ningún participante aparece dos veces en primera ronda.
-        $placed = $r1->flatMap(fn ($b) => [$b->slot_a_id, $b->slot_b_id])->filter();
-        $this->assertCount(5, $placed->unique());
-
-        // Numeración contigua solo para combates reales: 2 de primera ronda, 1 semifinal y la final.
-        $real = $category->bouts()->whereNotNull('number')->orderBy('number')->pluck('number')->all();
-        $this->assertSame([1, 2, 3, 4], $real);
+        $this->assertSame(2, $this->bout($category, 3, 1, true)->required_participants);
+        $this->assertSame([1, 2, 3, 4, 5], $category->bouts()->orderBy('number')->pluck('number')->all());
     }
 
-    public function test_never_more_than_one_participant_left_loose_in_any_round(): void
+    public function test_twenty_participants_make_a_four_bout_prelim_and_twelve_exempt(): void
     {
-        foreach ([2, 3, 4, 5, 6, 7, 9, 11, 12, 13, 17, 23, 31, 33] as $n) {
-            $category = $this->generated($n);
-            $real = $category->bouts()->where('is_bronze', false)->get();
+        $category = $this->generated(20);
+        $real = $category->bouts()->where('is_bronze', false)->get();
 
-            foreach ($real->groupBy('round') as $round => $bouts) {
-                $this->assertLessThanOrEqual(1, $bouts->filter->isBye()->count(), "n={$n} ronda {$round}: más de un pase");
+        $this->assertSame(5, $real->max('round'));
+        $prelim = $real->where('round', 1);
+        $this->assertCount(4, $prelim);
+        $this->assertTrue($prelim->every(fn (Bout $b) => $b->is_prelim && $b->required_participants === 2));
+        $this->assertSame([1, 2, 3, 4], $prelim->pluck('number')->sort()->values()->all());
+
+        $octavos = $real->where('round', 2)->keyBy('id');
+        $this->assertCount(8, $octavos);
+        $this->assertFalse($octavos->contains('is_prelim', true));
+        $this->assertSame(12, $octavos->sum(fn (Bout $b) => $b->filledSlots()));
+
+        // Una previa por cuadrante (octavos 1-2, 3-4, 5-6, 7-8) y cada una a un combate distinto.
+        $targets = $prelim->map(fn (Bout $b) => $octavos[$b->next_bout_id]->position)->sort()->values();
+        $this->assertCount(4, $targets->unique());
+        $this->assertSame([0, 1, 2, 3], $targets->map(fn ($p) => intdiv($p - 1, 2))->all());
+        foreach ($prelim as $b) {
+            $this->assertNull($octavos[$b->next_bout_id]->{$b->next_slot === 'a' ? 'slot_a_id' : 'slot_b_id'});
+        }
+
+        $this->assertCount(20, $this->placed($category));
+        $this->assertSame(range(1, 20), $category->bouts()->orderBy('number')->pluck('number')->all()); // 4+8+4+2+bronce+final
+    }
+
+    public function test_prelim_fighters_reaching_the_final_play_five_bouts_and_exempt_four(): void
+    {
+        foreach (['prelim' => true, 'exempt' => false] as $who => $prelimWins) {
+            $category = $this->generated(20);
+            $fighters = $category->bouts()->where('is_prelim', true)->get()->flatMap(fn (Bout $b) => [$b->slot_a_id, $b->slot_b_id])->all();
+
+            while ($bout = $category->bouts()->orderBy('number')->get()->first(fn (Bout $b) => $b->isReady())) {
+                $aIsPrelim = in_array($bout->slot_a_id, $fighters, true);
+                $winner = $aIsPrelim === $prelimWins ? $bout->slot_a_id : $bout->slot_b_id;
+                app(ResultRecorder::class)->record($bout, $winner);
             }
-            // Todos combaten en la primera ronda salvo, como mucho, uno.
-            $round1 = $real->where('round', 1);
-            $this->assertSame($n % 2, $round1->filter->isBye()->count(), "n={$n}");
-            $this->assertSame($n, $round1->sum(fn ($b) => $b->filledSlots()));
+
+            $real = $category->bouts()->where('is_bronze', false)->get();
+            $final = $real->first(fn (Bout $b) => $b->isFinal());
+            foreach ([$final->slot_a_id, $final->slot_b_id] as $finalist) {
+                $this->assertSame($prelimWins, in_array($finalist, $fighters, true), $who);
+                $played = $real->filter(fn (Bout $b) => in_array($finalist, [$b->slot_a_id, $b->slot_b_id], true))->count();
+                $this->assertSame($prelimWins ? 5 : 4, $played, $who);
+            }
+        }
+    }
+
+    public function test_power_of_two_has_no_prelim_and_small_sizes_build_the_right_rounds(): void
+    {
+        $category = $this->generated(16);
+        $this->assertSame(4, $category->bouts()->max('round'));
+        $this->assertFalse($category->bouts()->where('is_prelim', true)->exists());
+        $this->assertSame(8, $category->bouts()->where('round', 1)->where('required_participants', 2)->whereNotNull('slot_b_id')->count());
+
+        // n=3: previa de un combate + final con el exento; el bronce es un pase para el perdedor de la previa.
+        $category = $this->generated(3);
+        $prelim = $this->bout($category, 1, 1);
+        $final = $this->bout($category, 2, 1);
+        $this->assertTrue($prelim->is_prelim);
+        $this->assertTrue($final->isFinal());
+        $this->assertNotNull($final->slot_a_id);
+        $this->assertSame([$final->id, 'b'], [$prelim->next_bout_id, $prelim->next_slot]);
+        $this->assertSame(3, $category->bouts()->count());
+    }
+
+    public function test_every_size_feeds_a_power_of_two_round_with_exempt_and_prelim_winners(): void
+    {
+        foreach ([3, 5, 6, 7, 9, 11, 12, 13, 17, 23, 31, 33] as $n) {
+            $category = $this->generated($n);
+            $m = 2 ** (int) floor(log($n, 2));
+            $bouts = $category->bouts()->where('is_bronze', false)->get();
+            $prelim = $bouts->where('round', 1);
+            $next = $bouts->where('round', 2);
+
+            $this->assertSame($n - $m, $prelim->count(), "n={$n}: combates de previa");
+            $this->assertTrue($prelim->every(fn (Bout $b) => $b->is_prelim && $b->filledSlots() === 2), "n={$n}");
+            $this->assertCount(intdiv($m, 2), $next, "n={$n}");
+            $this->assertFalse($bouts->contains(fn (Bout $b) => $b->isBye()), "n={$n}: sin pases");
+
+            // Cada hueco de la ronda siguiente es un exento o el ganador de exactamente una previa.
+            $fed = $prelim->map(fn (Bout $b) => $b->next_bout_id.$b->next_slot)->all();
+            $this->assertCount(count($fed), array_unique($fed), "n={$n}");
+            foreach ($next as $b) {
+                foreach (['a' => $b->slot_a_id, 'b' => $b->slot_b_id] as $slot => $id) {
+                    $this->assertNotSame($id === null, ! in_array($b->id.$slot, $fed, true), "n={$n} combate {$b->position}{$slot}");
+                }
+            }
+            $this->assertCount($n, $this->placed($category), "n={$n}");
         }
     }
 
@@ -119,7 +204,8 @@ class BracketGeneratorTest extends TestCase
 
         $this->assertSame(1, $bronze->required_participants);
         $this->assertNull($bronze->number);
-        $this->assertSame(1, $category->bouts()->whereNull('number')->where('is_bronze', false)->count()); // el pase de semifinal
+        $this->assertSame($bronze->id, $this->bout($category, 1, 1)->loser_next_bout_id);
+        $this->assertSame(0, $category->bouts()->whereNull('number')->where('is_bronze', false)->count());
     }
 
     public function test_shared_bronze_creates_no_bronze_bout(): void
@@ -135,8 +221,7 @@ class BracketGeneratorTest extends TestCase
         $category = $this->categoryWithConfirmed(9);
         app(BracketGenerator::class)->generate($category);
 
-        $placed = $category->bouts()->where('round', 1)->get()->flatMap(fn ($b) => [$b->slot_a_id, $b->slot_b_id])->filter();
-        $this->assertCount(9, $placed->unique());
+        $this->assertCount(9, $this->placed($category));
     }
 
     public function test_regenerate_replaces_the_bracket_while_there_are_no_results(): void
@@ -146,7 +231,7 @@ class BracketGeneratorTest extends TestCase
 
         app(BracketGenerator::class)->generate($category->refresh());
 
-        $this->assertSame(7, $category->bouts()->count()); // 5 participantes ahora
+        $this->assertSame(5, $category->bouts()->count()); // 5 participantes ahora: previa, 2 semifinales, final y bronce
         $this->assertNotNull($category->fresh()->bracket_generated_at);
     }
 

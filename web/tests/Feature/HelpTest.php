@@ -19,6 +19,14 @@ class HelpTest extends TestCase
             ->assertSee('Crea tu cuenta de organizador')->assertSee('Añade tus competidores')->assertSee('Puntúa el combate');
     }
 
+    public function test_help_explains_how_to_show_or_hide_competitor_photos(): void
+    {
+        $this->get(route('help'))->assertOk()
+            ->assertSee('¿Cómo muestro u oculto las fotos de los inscritos?')
+            ->assertSee('Mostrar públicamente las fotos de los inscritos')
+            ->assertSee('consentimiento');
+    }
+
     public function test_help_icon_is_in_the_header_for_guests_and_users(): void
     {
         $this->get('/')->assertSee('aria-label="Ayuda"', false)->assertSee('href="#help"', false)->assertSee(route('help'), false);

@@ -23,12 +23,18 @@
         .bib { font-weight: bold; }
         .blank { display: inline-block; width: 13mm; border-bottom: 0.25mm solid #222; height: 2.6mm; }
         .box { position: absolute; border: 0.3mm solid #222; padding: 1.5mm 2.5mm; font-size: 8pt; }
+        .tag { color: #555; font-size: 5.2pt; font-style: italic; }
+        /* Tarjetas compactas (muchas filas por hoja): cabecera y filas más bajas. */
+        .compact .card { padding: 0.2mm 1.2mm; }
+        .compact .head { font-size: 4.6pt; height: 2.1mm; }
+        .compact .row { font-size: 6pt; height: 3mm; }
+        .compact .club, .compact .tag { font-size: 5pt; }
         .foot { font-size: 6pt; color: #555; }
     </style>
 </head>
 <body>
 @foreach ($pages as $i => $page)
-    <div class="page">
+    <div class="page{{ $page['compact'] ? ' compact' : '' }}">
         <div class="abs" style="left: {{ \App\Tournament\PaperBracket::MARGIN }}mm; top: {{ \App\Tournament\PaperBracket::MARGIN }}mm; width: 200mm;">
             <div class="title">{{ $event->name }} — {{ $category->name }}</div>
             <div class="meta">
@@ -52,9 +58,10 @@
                     <div class="row">
                         <span class="sq {{ $row['side'] }}"></span>
                         @if ($row['name'])
-                            {{ $row['name'] }}@if ($row['club']) <span class="club">({{ $row['club'] }})</span>@endif
+                            @if ($row['label'])<span class="tag">{{ $row['label'] }}</span> @endif{{ $row['name'] }}@if ($row['club']) <span class="club">({{ $row['club'] }})</span>@endif
+                        @elseif ($row['label'])
+                            <span class="club">{{ $row['label'] }}</span>
                         @endif
-                        @if ($row['label'])<span class="club">{{ $row['label'] }}</span>@endif
                         @if ($row['bib'])
                             <span class="bib">Nº {{ $row['bib'] }}</span>
                         @elseif ($row['blank'])
@@ -78,7 +85,7 @@
             </div>
         @endif
 
-        <div class="abs foot" style="left: {{ \App\Tournament\PaperBracket::MARGIN }}mm; bottom: 3mm;">KumiteControl · Cuadro para rellenar a mano: en la primera ronda constan los nombres; en las siguientes, escribe el número de competidor.</div>
+        <div class="abs foot" style="left: {{ \App\Tournament\PaperBracket::MARGIN }}mm; bottom: 3mm;">KumiteControl · Cuadro para rellenar a mano: en la primera ronda (y los exentos) constan los nombres; en las siguientes, escribe el número de competidor.</div>
     </div>
 @endforeach
 </body>

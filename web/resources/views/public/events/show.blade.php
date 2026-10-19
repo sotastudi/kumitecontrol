@@ -89,8 +89,8 @@
                         @if ($tatami['now'])
                             @php $bout = $tatami['now']; @endphp
                             <div class="small text-muted mb-1">{{ $bout->category->name }} · Combate {{ $bout->number }}</div>
-                            <div><span class="side-chip side-aka" role="img" aria-label="AKA (rojo)"></span>{{ $bout->slotA->competitor->displayName() }}@if ($bout->slotA->competitor->club) <small class="text-muted">(<x-club-name :club="$bout->slotA->competitor->club" :event="$event" />)</small>@endif</div>
-                            <div><span class="side-chip side-shiro" role="img" aria-label="SHIRO (blanco)"></span>{{ $bout->slotB->competitor->displayName() }}@if ($bout->slotB->competitor->club) <small class="text-muted">(<x-club-name :club="$bout->slotB->competitor->club" :event="$event" />)</small>@endif</div>
+                            <div><span class="side-chip side-aka" role="img" aria-label="AKA (rojo)"></span><x-competitor-photo :competitor="$bout->slotA->competitor" :event="$event" size="sm" /> {{ $bout->slotA->competitor->displayName() }}@if ($bout->slotA->competitor->club) <small class="text-muted">(<x-club-name :club="$bout->slotA->competitor->club" :event="$event" />)</small>@endif</div>
+                            <div><span class="side-chip side-shiro" role="img" aria-label="SHIRO (blanco)"></span><x-competitor-photo :competitor="$bout->slotB->competitor" :event="$event" size="sm" /> {{ $bout->slotB->competitor->displayName() }}@if ($bout->slotB->competitor->club) <small class="text-muted">(<x-club-name :club="$bout->slotB->competitor->club" :event="$event" />)</small>@endif</div>
                         @else
                             <p class="text-muted mb-0">Sin combate en este momento.</p>
                         @endif

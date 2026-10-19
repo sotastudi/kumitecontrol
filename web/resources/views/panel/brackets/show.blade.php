@@ -2,7 +2,7 @@
 @section('title', 'Cuadro · '.$category->name)
 @section('content')
 @php
-    $participants = $bouts->where('round', 1)->where('is_bronze', false)->flatMap(fn ($b) => [$b->slotA, $b->slotB])->filter()->unique('id');
+    $participants = $bouts->whereIn('round', [1, 2])->where('is_bronze', false)->flatMap(fn ($b) => [$b->slotA, $b->slotB])->filter()->unique('id');
 @endphp
 @if ($readinessProblem && ! $regenerationLocked)
     <div class="alert alert-warning no-print">{{ $readinessProblem }} <a href="{{ route('panel.events.show', $event) }}" class="alert-link">Ir al evento</a></div>
@@ -10,6 +10,30 @@
 <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
     <div>
         <a href="{{ route('panel.events.show', $event) }}" class="small">&larr; {{ $event->name }}</a>
+        @if ($siblings->count() > 1)
+            @php
+                $at = $siblings->search(fn ($c) => $c->id === $category->id);
+                $previous = $at !== false && $at > 0 ? $siblings[$at - 1] : null;
+                $next = $at !== false ? $siblings->get($at + 1) : null;
+            @endphp
+            <div class="d-flex align-items-center flex-wrap gap-2 my-2 no-print">
+                @if ($previous)
+                    <a href="{{ route('panel.brackets.show', [$event, $previous]) }}" class="btn btn-outline-secondary btn-sm">&lsaquo; Anterior</a>
+                @else
+                    <span class="btn btn-outline-secondary btn-sm disabled" aria-disabled="true">&lsaquo; Anterior</span>
+                @endif
+                <select class="form-select form-select-sm w-auto" aria-label="Cambiar de categoría" onchange="location = this.value">
+                    @foreach ($siblings as $sibling)
+                        <option value="{{ route('panel.brackets.show', [$event, $sibling]) }}" @selected($sibling->id === $category->id)>{{ $sibling->name }}@if ($sibling->tatami) · Tatami {{ $sibling->tatami }}@endif</option>
+                    @endforeach
+                </select>
+                @if ($next)
+                    <a href="{{ route('panel.brackets.show', [$event, $next]) }}" class="btn btn-outline-secondary btn-sm">Siguiente &rsaquo;</a>
+                @else
+                    <span class="btn btn-outline-secondary btn-sm disabled" aria-disabled="true">Siguiente &rsaquo;</span>
+                @endif
+            </div>
+        @endif
         <h1 class="h3 mb-1">{{ $category->name }}</h1>
         <div class="mb-1 category-tatami">
             @if ($category->tatami)
@@ -79,6 +103,18 @@
     <div class="alert alert-secondary">Solo hay un inscrito confirmado: la clasificación se resuelve manualmente según el reglamento.</div>
 @endif
 
+@php
+    // Aviso de descanso solo si el cuadro tiene ronda previa (modelo con exentos directos a la ronda 2).
+    $prelimBouts = $bouts->where('is_prelim', true)->where('is_bronze', false)->count();
+    $exemptCount = $participants->count() - 2 * $prelimBouts;
+@endphp
+@if ($prelimBouts > 0)
+    <div class="alert alert-info no-print">
+        <strong>Ronda previa:</strong> {{ $prelimBouts }} {{ $prelimBouts === 1 ? 'combate' : 'combates' }} ({{ 2 * $prelimBouts }} competidores) · {{ $exemptCount }} {{ $exemptCount === 1 ? 'exento' : 'exentos' }}.
+        Los de la previa harán un combate más. Deja 20–30 minutos de descanso antes de la ronda siguiente.
+    </div>
+@endif
+
 @if ($bouts->isNotEmpty())
     <section class="mb-4">
         <h2 class="h5">Cuadro</h2>
@@ -115,7 +151,7 @@
                 @foreach ($bouts->whereNotNull('number')->sortBy('number') as $bout)
                     <tr>
                         <td>{{ $bout->number }}</td>
-                        <td>{{ $bout->is_bronze ? 'Bronce' : \App\Tournament\RoundLabel::for($bout->round, $totalRounds) }}</td>
+                        <td>{{ $bout->is_bronze ? 'Bronce' : \App\Tournament\RoundLabel::for($bout->round, $totalRounds, $bout->is_prelim) }}</td>
                         <td>{{ $bout->slotA?->competitor->displayName() ?? 'Por determinar' }} — {{ $bout->slotB?->competitor->displayName() ?? 'Por determinar' }}</td>
                         <td>{{ $bout->isCompleted() ? 'Finalizado' : ($bout->isReady() ? 'Listo' : 'Pendiente') }}</td>
                     </tr>

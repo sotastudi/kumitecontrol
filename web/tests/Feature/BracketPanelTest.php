@@ -2,10 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Enums\EventStatus;
 use App\Models\Category;
 use App\Models\Event;
 use App\Models\Registration;
 use App\Models\User;
+use App\Registrations\BibNumberAssigner;
+use App\Tournament\PaperBracket;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\BuildsBrackets;
 use Tests\TestCase;
@@ -29,10 +32,10 @@ class BracketPanelTest extends TestCase
         [$user, $event, $category] = $this->owned(5);
 
         $this->actingAs($user)->post(route('panel.brackets.store', [$event, $category]))->assertRedirect();
-        $this->assertSame(7, $category->bouts()->count());
+        $this->assertSame(5, $category->bouts()->count()); // previa, 2 semifinales, final y bronce
 
         $this->actingAs($user)->post(route('panel.brackets.store', [$event, $category]))->assertRedirect();
-        $this->assertSame(7, $category->bouts()->count());
+        $this->assertSame(5, $category->bouts()->count());
         $this->actingAs($user)->get(route('panel.brackets.show', [$event, $category]))->assertOk()->assertSee('Semifinales');
     }
 
@@ -111,6 +114,17 @@ class BracketPanelTest extends TestCase
             ->assertSessionHasErrors('error');
     }
 
+    public function test_adjust_dropdown_lists_all_participants_including_exempt(): void
+    {
+        [$user, $event, $category] = $this->owned(20);
+        $this->actingAs($user)->post(route('panel.brackets.store', [$event, $category]));
+
+        $html = $this->actingAs($user)->get(route('panel.brackets.show', [$event, $category]))->assertOk()->getContent();
+        preg_match('/<select[^>]*id="registration_a".*?<\/select>/s', $html, $m);
+
+        $this->assertSame(20, substr_count($m[0], '<option'));
+    }
+
     public function test_stale_bracket_warning_is_shown(): void
     {
         [$user, $event, $category] = $this->owned(4);
@@ -177,18 +191,136 @@ class BracketPanelTest extends TestCase
         $this->assertSame(0, $category->bouts()->count());
 
         // Cerradas pero sin números.
-        $event->update(['status' => \App\Enums\EventStatus::RegistrationClosed]);
+        $event->update(['status' => EventStatus::RegistrationClosed]);
         $this->get(route('panel.brackets.show', [$event, $category]))->assertSee('Asigna los números de competidor');
         $this->post(route('panel.brackets.store', [$event, $category]))->assertSessionHasErrors('error');
         $this->assertSame(0, $category->bouts()->count());
 
         // Con números asignados ya se genera; un confirmado nuevo sin número vuelve a bloquear la regeneración.
-        app(\App\Registrations\BibNumberAssigner::class)->assign($event);
+        app(BibNumberAssigner::class)->assign($event);
         $this->post(route('panel.brackets.store', [$event, $category]))->assertSessionHasNoErrors();
         $this->assertGreaterThan(0, $category->bouts()->count());
 
         Registration::factory()->confirmed()->forCategory($category)->create();
         $this->post(route('panel.brackets.store', [$event, $category]))->assertSessionHasErrors('error');
         $this->get(route('panel.brackets.show', [$event, $category]))->assertSee('1 inscritos confirmados sin número');
+    }
+
+    public function test_prelim_round_shows_rest_notice_labels_and_exempt_slots(): void
+    {
+        [$user, $event, $category] = $this->owned(20);
+        $this->actingAs($user)->post(route('panel.brackets.store', [$event, $category]));
+
+        $this->actingAs($user)->get(route('panel.brackets.show', [$event, $category]))->assertOk()
+            ->assertSee('Ronda previa')->assertSee('Octavos de final')
+            ->assertSee('4 combates (8 competidores) · 12 exentos')->assertSee('20–30 minutos')
+            ->assertSee('Exento');
+    }
+
+    public function test_power_of_two_bracket_has_no_prelim_notice(): void
+    {
+        [$user, $event, $category] = $this->owned(16);
+        $this->actingAs($user)->post(route('panel.brackets.store', [$event, $category]));
+
+        $this->actingAs($user)->get(route('panel.brackets.show', [$event, $category]))->assertOk()
+            ->assertSee('Octavos de final')->assertDontSee('Ronda previa')->assertDontSee('20–30 minutos')->assertDontSee('Exento');
+    }
+
+    public function test_prelim_bouts_sit_on_the_row_of_the_bout_they_feed(): void
+    {
+        [$user, $event, $category] = $this->owned(20);
+        $this->actingAs($user)->post(route('panel.brackets.store', [$event, $category]));
+        $html = $this->actingAs($user)->get(route('panel.brackets.show', [$event, $category]))->getContent();
+
+        preg_match_all('/class="bracket-cell ([^"]*)"\s+data-bout="(\d+)"\s+style="grid-column: (\d+); grid-row: (\d+) \/ (\d+)"/', $html, $m, PREG_SET_ORDER);
+        $cells = collect($m)->keyBy(fn ($c) => (int) $c[2]);
+        $bouts = $category->bouts()->where('is_bronze', false)->get();
+        $this->assertCount($bouts->count(), $cells);
+
+        // Octavos: 8 combates en 8 filas propias; la previa, en la fila de su combate de octavos y con línea recta hacia él.
+        $octavos = $bouts->where('round', 2);
+        $this->assertSame(range(2, 9), $octavos->map(fn ($b) => (int) $cells[$b->id][4])->sort()->values()->all());
+        foreach ($bouts->where('round', 1) as $prelim) {
+            $this->assertSame('1', $cells[$prelim->id][3]);
+            $this->assertSame([$cells[$prelim->next_bout_id][4], $cells[$prelim->next_bout_id][5]], [$cells[$prelim->id][4], $cells[$prelim->id][5]]);
+            $this->assertStringContainsString('link-single', $cells[$prelim->id][1]);
+        }
+        // Cuartos abarcan dos filas de octavos.
+        foreach ($bouts->where('round', 3) as $bout) {
+            $this->assertSame(2, (int) $cells[$bout->id][5] - (int) $cells[$bout->id][4]);
+            $this->assertStringContainsString('has-in', $cells[$bout->id][1]);
+        }
+    }
+
+    public function test_bracket_pages_render_for_prelim_and_power_of_two_sizes(): void
+    {
+        foreach ([3, 5, 6, 20, 31, 33, 8] as $n) {
+            [$user, $event, $category] = $this->owned($n);
+            $category->forceFill(['tatami' => 1, 'tatami_position' => 1, 'is_published' => true])->save();
+            $event->forceFill(['is_public' => true, 'status' => EventStatus::InProgress])->save();
+            $this->actingAs($user)->post(route('panel.brackets.store', [$event, $category]))->assertSessionHasNoErrors();
+
+            $this->actingAs($user)->get(route('panel.brackets.show', [$event, $category]))->assertOk();
+            $this->actingAs($user)->get(route('panel.brackets.pdf', [$event, $category]))->assertOk();
+            $this->actingAs($user)->get(route('panel.tatamis.show', [$event, 1]))->assertOk();
+            auth()->logout();
+            $this->seeResults($event)->get(route('public.categories.show', [$event, $category]))->assertOk();
+        }
+    }
+
+    public function test_old_bracket_with_bye_bouts_still_renders_without_prelim_notice(): void
+    {
+        // Cuadro guardado con el modelo antiguo: 3 inscritos, ronda 1 completa con un pase y final.
+        [$user, $event, $category] = $this->owned(3);
+        [$r1, $r2, $r3] = $category->registrations()->orderBy('id')->pluck('id')->all();
+        $final = $category->bouts()->create(['round' => 2, 'position' => 1, 'number' => 2, 'required_participants' => 2, 'slot_b_id' => $r3]);
+        $bout = $category->bouts()->create(['round' => 1, 'position' => 1, 'number' => 1, 'required_participants' => 2, 'slot_a_id' => $r1, 'slot_b_id' => $r2, 'next_bout_id' => $final->id, 'next_slot' => 'a']);
+        $bye = $category->bouts()->create(['round' => 1, 'position' => 2, 'required_participants' => 1, 'slot_a_id' => $r3, 'winner_id' => $r3, 'next_bout_id' => $final->id, 'next_slot' => 'b']);
+        $category->forceFill(['bracket_generated_at' => now()])->save();
+
+        $html = $this->actingAs($user)->get(route('panel.brackets.show', [$event, $category]))->assertOk()
+            ->assertDontSee('20–30 minutos')->assertDontSee('Exento')->getContent();
+        foreach ([$bout, $bye] as $source) {
+            $this->assertMatchesRegularExpression('/data-bout="'.$source->id.'"\s+style="grid-column: 1; grid-row: '.($source->position + 1).' \//', $html);
+        }
+        $this->assertMatchesRegularExpression('/has-in"\s+data-bout="'.$final->id.'"\s+style="grid-column: 2; grid-row: 2 \/ 4"/', $html);
+
+        $this->actingAs($user)->get(route('panel.brackets.pdf', [$event, $category]))->assertOk();
+        $cards = collect(app(PaperBracket::class)->pages($category)[0]['cards']);
+        $this->assertSame(['Pase'], $cards->flatMap(fn ($c) => $c['rows'])->pluck('label')->filter()->values()->all());
+    }
+
+    public function test_category_navigation_lists_bracket_categories_with_previous_and_next(): void
+    {
+        $user = User::factory()->create();
+        $event = Event::factory()->for($user)->create();
+        [$a, $b, $c] = collect(['Aaa', 'Bbb', 'Ccc'])->map(fn ($name) => Category::factory()->for($event)->create(['name' => $name, 'modality' => 'kumite']))->all();
+        Category::factory()->for($event)->create(['name' => 'Exhibición Z', 'modality' => 'exhibition']);
+        Category::factory()->for(Event::factory()->for($user))->create(['name' => 'De otro evento', 'modality' => 'kumite']);
+
+        $html = $this->actingAs($user)->get(route('panel.brackets.show', [$event, $b]))->assertOk()->getContent();
+
+        $this->assertStringContainsString('aria-label="Cambiar de categoría"', $html);
+        foreach ([$a, $b, $c] as $category) {
+            $this->assertStringContainsString('value="'.route('panel.brackets.show', [$event, $category]).'"', $html);
+        }
+        $this->assertMatchesRegularExpression('/value="[^"]*categorias\/'.$b->id.'\/cuadro"\s+selected/', $html);
+        $this->assertStringNotContainsString('Exhibición Z', $html);
+        $this->assertStringNotContainsString('De otro evento', $html);
+        $this->assertStringContainsString('href="'.route('panel.brackets.show', [$event, $a]).'" class="btn btn-outline-secondary btn-sm"', $html);
+        $this->assertStringContainsString('href="'.route('panel.brackets.show', [$event, $c]).'" class="btn btn-outline-secondary btn-sm"', $html);
+
+        // En los extremos, el botón correspondiente está deshabilitado.
+        $first = $this->get(route('panel.brackets.show', [$event, $a]))->getContent();
+        $this->assertStringContainsString('<span class="btn btn-outline-secondary btn-sm disabled" aria-disabled="true">&lsaquo; Anterior</span>', $first);
+        $last = $this->get(route('panel.brackets.show', [$event, $c]))->getContent();
+        $this->assertStringContainsString('<span class="btn btn-outline-secondary btn-sm disabled" aria-disabled="true">Siguiente &rsaquo;</span>', $last);
+    }
+
+    public function test_category_navigation_is_hidden_with_a_single_bracket_category(): void
+    {
+        [$user, $event, $category] = $this->owned(4);
+
+        $this->actingAs($user)->get(route('panel.brackets.show', [$event, $category]))->assertOk()->assertDontSee('Cambiar de categoría', false);
     }
 }

@@ -16,6 +16,12 @@ class DemoRegistrationsTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        \Illuminate\Support\Facades\Storage::fake('local');
+    }
+
     private function category(array $o = []): Category
     {
         return Category::factory()->for(Event::factory()->create(['starts_on' => '2026-11-20']))->create($o);

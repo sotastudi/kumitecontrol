@@ -37,7 +37,18 @@
     </div>
 </div>
 @if ($bibsProblem && $event->status->value !== 'draft')
-    <div class="alert alert-warning no-print">{{ $bibsProblem }} <a href="{{ route('panel.registrations.index', ['event' => $event, 'status' => 'pending']) }}" class="alert-link">Ver pendientes</a></div>
+    <div class="alert alert-warning no-print d-flex align-items-center flex-wrap gap-2">
+        <span>{{ $bibsProblem }}</span>
+        @if ($pendingCount > 0)
+            <a href="{{ route('panel.registrations.index', ['event' => $event, 'status' => 'pending']) }}" class="alert-link">Ver pendientes</a>
+        @elseif ($event->status === \App\Enums\EventStatus::RegistrationOpen)
+            <form method="POST" action="{{ route('panel.events.close-registrations', $event) }}"
+                  onsubmit="return confirm('Se cerrarán las inscripciones: los clubes ya no podrán inscribir. ¿Continuar?')">
+                @csrf
+                <button type="submit" class="btn btn-warning btn-sm">Cerrar inscripciones</button>
+            </form>
+        @endif
+    </div>
 @endif
 @if ($event->description)<p style="white-space: pre-line">{{ $event->description }}</p>@endif
 
@@ -187,6 +198,7 @@
         <button type="button" class="btn btn-primary btn-sm btn-icon" data-bs-toggle="collapse" data-bs-target="#create-operator" aria-expanded="{{ old('_form') === 'create' ? 'true' : 'false' }}" aria-controls="create-operator"><svg width="16" height="16" aria-hidden="true"><use href="#plus"/></svg> Crear controlador</button>
     </div>
     <p class="text-muted small">Pueden puntuar el combate actual de los tatamis que se les asignen y no ven nada más del evento. Les creas un usuario y una contraseña (el correo es opcional) y se lo entregas tú; pueden tener acceso a varios tatamis.</p>
+    <p class="small mb-3"><a href="{{ route('panel.my-operators.index') }}">Gestionar todos tus controladores</a> (en «Mis controladores» puedes reutilizar las mismas cuentas en varios eventos).</p>
     @php $operatorsByUser = $event->operators->groupBy('user_id'); @endphp
     @if ($operatorsByUser->isNotEmpty())
         <ul class="list-group mb-3">

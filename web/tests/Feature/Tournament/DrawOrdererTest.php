@@ -8,7 +8,9 @@ use App\Models\Competitor;
 use App\Models\Event;
 use App\Models\Registration;
 use App\Models\User;
+use App\Support\MartialLevels;
 use App\Tournament\BracketGenerator;
+use App\Tournament\DrawOrderer;
 use App\Tournament\PodiumCalculator;
 use App\Tournament\ResultRecorder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -28,6 +30,24 @@ class DrawOrdererTest extends TestCase
         }
 
         return $category;
+    }
+
+    /** @return array{slots: list<list<int>>, prelim: bool, warnings: list<string>} */
+    private function draw(Category $category, DrawCriteria $criteria = DrawCriteria::LevelWeightClub): array
+    {
+        return app(DrawOrderer::class)->order($category->registrations()->with('competitor')->orderBy('id')->get(), $criteria);
+    }
+
+    /** @return list<int> ids de todos los huecos, en orden */
+    private function placed(array $slots): array
+    {
+        return array_merge(...$slots);
+    }
+
+    /** @return array<int,string> id => nivel */
+    private function levels(Category $category): array
+    {
+        return $category->registrations()->with('competitor')->get()->mapWithKeys(fn ($r) => [$r->id => $r->competitor->level])->all();
     }
 
     /** @return list<array{string,string}> parejas de "nivel/peso" del primer combate */
@@ -54,18 +74,158 @@ class DrawOrdererTest extends TestCase
         }
     }
 
-    public function test_highest_levels_get_the_byes(): void
+    public function test_highest_level_is_exempt_and_the_two_lowest_fight_the_prelim(): void
     {
         $category = $this->category([
             ['level' => '3º dan', 'weight' => 70, 'club' => 'A'],
             ['level' => '1º kyu', 'weight' => 70, 'club' => 'B'],
             ['level' => '5º kyu', 'weight' => 70, 'club' => 'C'],
         ]);
+        $levels = $this->levels($category);
 
-        app(BracketGenerator::class)->generate($category);
+        $draw = $this->draw($category);
 
-        $bye = $category->bouts()->where('round', 1)->where('required_participants', 1)->firstOrFail();
-        $this->assertSame('3º dan', ($bye->slotA ?? $bye->slotB)->competitor->level);
+        $this->assertTrue($draw['prelim']);
+        $this->assertCount(2, $draw['slots']);
+        $exempt = array_values(array_filter($draw['slots'], fn ($s) => count($s) === 1));
+        $this->assertCount(1, $exempt);
+        $this->assertSame('3º dan', $levels[$exempt[0][0]]);
+    }
+
+    public function test_twenty_distinct_levels_give_four_prelim_pairs_of_the_lowest_and_twelve_exempt(): void
+    {
+        $rows = [];
+        foreach (MartialLevels::values() as $i => $level) {
+            $rows[] = ['level' => $level, 'weight' => 70, 'club' => 'Club '.$i];
+        }
+        $category = $this->category($rows);
+        $levels = $this->levels($category);
+        $lowest = array_slice(MartialLevels::values(), 0, 8);
+
+        $draw = $this->draw($category);
+
+        $this->assertTrue($draw['prelim']);
+        $this->assertCount(16, $draw['slots']);
+        $pairs = array_values(array_filter($draw['slots'], fn ($s) => count($s) === 2));
+        $exempt = array_values(array_filter($draw['slots'], fn ($s) => count($s) === 1));
+        $this->assertCount(4, $pairs);
+        $this->assertCount(12, $exempt);
+        $this->assertEqualsCanonicalizing($lowest, array_map(fn ($id) => $levels[$id], array_merge(...$pairs)));
+        $this->assertEqualsCanonicalizing(array_keys($levels), $this->placed($draw['slots']));
+
+        // Cuatro cuadrantes de 4 huecos (5 competidores): una pareja de previa y tres exentos en cada uno.
+        foreach (array_chunk($draw['slots'], 4) as $q => $quadrant) {
+            $this->assertSame(1, count(array_filter($quadrant, fn ($s) => count($s) === 2)), "cuadrante {$q}");
+            $this->assertSame(5, count(array_merge(...$quadrant)), "cuadrante {$q}");
+        }
+    }
+
+    public function test_power_of_two_has_no_prelim_and_other_sizes_fill_a_power_of_two(): void
+    {
+        $category = Category::factory()->create();
+        Registration::factory()->count(16)->confirmed()->forCategory($category)->create();
+        $draw = $this->draw($category);
+        $this->assertFalse($draw['prelim']);
+        $this->assertCount(8, $draw['slots']);
+        $this->assertTrue(collect($draw['slots'])->every(fn ($s) => count($s) === 2));
+
+        foreach ([3 => 2, 6 => 4, 17 => 16, 31 => 16] as $n => $size) {
+            $category = Category::factory()->create();
+            Registration::factory()->count($n)->confirmed()->forCategory($category)->create();
+            $draw = $this->draw($category);
+
+            $this->assertTrue($draw['prelim'], "n={$n}");
+            $this->assertCount($size, $draw['slots'], "n={$n}");
+            $this->assertSame($n - $size, count(array_filter($draw['slots'], fn ($s) => count($s) === 2)), "n={$n}: combates de previa");
+            $this->assertEqualsCanonicalizing($category->registrations()->pluck('id')->all(), $this->placed($draw['slots']), "n={$n}");
+        }
+    }
+
+    public function test_pure_random_draw_still_has_eight_prelim_fighters_out_of_twenty(): void
+    {
+        $category = Category::factory()->create();
+        Registration::factory()->count(20)->confirmed()->forCategory($category)->create();
+
+        $draw = $this->draw($category, DrawCriteria::Random);
+
+        $this->assertCount(16, $draw['slots']);
+        $this->assertCount(8, array_merge(...array_filter($draw['slots'], fn ($s) => count($s) === 2)));
+        $this->assertCount(12, array_filter($draw['slots'], fn ($s) => count($s) === 1));
+    }
+
+    public function test_exempt_from_the_same_club_do_not_meet_in_their_first_bout_when_avoidable(): void
+    {
+        // n=10: 8 huecos, 6 exentos y 2 parejas de previa; las semillas 3-6 y 4-5 son exentos que se cruzan entre sí.
+        $rows = [];
+        foreach (['6º dan' => 'A', '5º dan' => 'B', '4º dan' => 'Dojo X', '3º dan' => 'Dojo Y', '2º dan' => 'Dojo Y', '1º dan' => 'Dojo X'] as $level => $club) {
+            $rows[] = ['level' => $level, 'weight' => 70, 'club' => $club];
+        }
+        foreach (range(1, 4) as $i) {
+            $rows[] = ['level' => '5º kyu', 'weight' => 70 + $i, 'club' => 'Otro '.$i];
+        }
+        $category = $this->category($rows);
+        $clubs = $category->registrations()->with('competitor')->get()->mapWithKeys(fn ($r) => [$r->id => $r->competitor->club])->all();
+
+        $draw = $this->draw($category);
+
+        $this->assertCount(8, $draw['slots']);
+        $meetings = 0;
+        foreach (array_chunk($draw['slots'], 2) as $j => [$a, $b]) {
+            if (count($a) === 1 && count($b) === 1) {
+                $meetings++;
+                $this->assertNotSame($clubs[$a[0]], $clubs[$b[0]], "combate {$j}");
+            }
+        }
+        $this->assertSame(2, $meetings);
+        $this->assertSame([], $draw['warnings']);
+    }
+
+    public function test_exempt_of_a_single_club_meeting_is_reported_as_a_warning(): void
+    {
+        // n=10 de un único club: 2 parejas de previa y 2 cruces entre exentos.
+        $rows = [];
+        foreach (range(1, 10) as $i) {
+            $rows[] = ['level' => '1º kyu', 'weight' => 60 + $i, 'club' => 'Dojo Único'];
+        }
+
+        $draw = $this->draw($this->category($rows));
+
+        $this->assertCount(4, $draw['warnings']);
+        $this->assertStringContainsString('mismo club (Dojo Único)', $draw['warnings'][0]);
+    }
+
+    /** Sorteos repetidos de 20 de clubes distintos (mismo nivel y peso): ni el primer club alfabético queda siempre exento ni el último siempre en la previa. */
+    private function assertExemptDoNotDependOnClubName(DrawCriteria $criteria): void
+    {
+        $rows = [];
+        foreach (range(1, 20) as $i) {
+            $rows[] = ['level' => '1º kyu', 'weight' => 70, 'club' => sprintf('Club %02d', $i)];
+        }
+        $category = $this->category($rows);
+        $clubs = $category->registrations()->with('competitor')->get()->mapWithKeys(fn ($r) => [$r->id => $r->competitor->club])->all();
+        $first = array_search('Club 01', $clubs, true);
+        $last = array_search('Club 20', $clubs, true);
+
+        $firstFought = $lastExempt = false;
+        foreach (range(1, 30) as $attempt) {
+            $exempt = array_merge(...array_filter($this->draw($category, $criteria)['slots'], fn ($s) => count($s) === 1));
+            $firstFought = $firstFought || ! in_array($first, $exempt, true);
+            $lastExempt = $lastExempt || in_array($last, $exempt, true);
+        }
+
+        $this->assertTrue($firstFought, "{$criteria->value}: el primer club alfabético nunca disputa la previa");
+        $this->assertTrue($lastExempt, "{$criteria->value}: el último club alfabético nunca queda exento");
+    }
+
+    public function test_club_only_draw_does_not_choose_the_exempt_by_club_name(): void
+    {
+        $this->assertExemptDoNotDependOnClubName(DrawCriteria::ClubOnly);
+    }
+
+    public function test_ties_within_a_level_are_not_resolved_by_club_name(): void
+    {
+        $this->assertExemptDoNotDependOnClubName(DrawCriteria::LevelWeightClub);
+        $this->assertExemptDoNotDependOnClubName(DrawCriteria::LevelClub);
     }
 
     public function test_first_bout_avoids_same_club_when_possible(): void
@@ -99,9 +259,13 @@ class DrawOrdererTest extends TestCase
             ['level' => null, 'weight' => null, 'club' => 'D'],
         ]);
 
+        $draw = $this->draw($category);
+        $this->assertCount(5, array_unique($this->placed($draw['slots'])));
+
         app(BracketGenerator::class)->generate($category);
 
-        $this->assertSame(5, $category->bouts()->where('round', 1)->get()->flatMap(fn ($b) => [$b->slot_a_id, $b->slot_b_id])->filter()->count());
+        $this->assertSame(5, $category->bouts()->where('round', '<=', 2)->where('is_bronze', false)->get()
+            ->flatMap(fn ($b) => [$b->slot_a_id, $b->slot_b_id])->filter()->unique()->count());
     }
 
     public function test_category_criteria_overrides_the_event_default(): void
@@ -159,8 +323,9 @@ class DrawOrdererTest extends TestCase
         app(BracketGenerator::class)->generate($category);
 
         $category->refresh();
-        $this->assertSame(3, $category->bouts()->where('round', 1)->where('required_participants', 2)->count(), 'nadie queda suelto aunque se fuerce la regla');
-        $this->assertCount(3, $category->draw_warnings);
+        // 6 = 2 exentos + 2 combates de previa (que se mantienen aunque sean del mismo club).
+        $this->assertSame(2, $category->bouts()->where('round', 1)->where('required_participants', 2)->count());
+        $this->assertCount(2, $category->draw_warnings);
         $this->assertStringContainsString('mismo club (Dojo Único)', $category->draw_warnings[0]);
 
         $owner = $category->event->user;
@@ -181,9 +346,9 @@ class DrawOrdererTest extends TestCase
         $this->assertNull($category->fresh()->draw_warnings);
     }
 
-    public function test_every_bracket_size_can_be_played_to_the_final_with_the_loose_rule(): void
+    public function test_every_bracket_size_can_be_played_to_the_final(): void
     {
-        foreach ([5, 6, 7, 9, 12, 21, 37] as $n) {
+        foreach (range(2, 33) as $n) {
             $category = Category::factory()->create();
             Registration::factory()->count($n)->confirmed()->forCategory($category)->create();
             app(BracketGenerator::class)->generate($category);
@@ -197,7 +362,7 @@ class DrawOrdererTest extends TestCase
             $this->assertTrue($final->isCompleted(), "n={$n}: la final no se resolvió");
             $this->assertSame(0, $category->bouts()->where('required_participants', 2)->whereNull('winner_id')->count(), "n={$n}: combates sin ganador");
             $podium = app(PodiumCalculator::class)->for($category->fresh());
-            $this->assertGreaterThanOrEqual(3, count($podium), "n={$n}");
+            $this->assertGreaterThanOrEqual(min(3, $n), count($podium), "n={$n}");
         }
     }
 }

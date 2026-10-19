@@ -9,4 +9,4 @@ php artisan key:generate && npm install && php artisan migrate && npm run dev
 
 DocumentRoot de MAMP PRO: `kumitecontrol/web/public`. Pruebas: `php artisan test`; estilo: `vendor/bin/pint --test`.
 
-Deploy a producción (`/web/kumite/`): copiar `deploy/.env.example` → `deploy/.env` y ejecutar `./deploy/deploy.sh` (ver README raíz).
+Deploy a producción (`/web/kumite/`): copiar `deploy/.env.example` → `deploy/.env` y, en este Mac Apple Silicon, ejecutar `./deploy/deploy-mac.sh` (alternativa genérica: `./deploy/deploy.sh`; ver README raíz).

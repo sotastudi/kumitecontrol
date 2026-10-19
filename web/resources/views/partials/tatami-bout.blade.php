@@ -9,7 +9,7 @@
 <div class="d-flex align-items-center flex-wrap gap-2 mb-3 tatami-bout-header">
     <span class="bout-number-tag">Combate {{ $bout->number }}</span>
     <span class="fw-semibold">{{ $bout->category->name }}</span>
-    <span class="text-muted">· {{ $bout->is_bronze ? 'Bronce' : \App\Tournament\RoundLabel::for($bout->round, $totalRounds) }}</span>
+    <span class="text-muted">· {{ $bout->is_bronze ? 'Bronce' : \App\Tournament\RoundLabel::for($bout->round, $totalRounds, $bout->is_prelim) }}</span>
 </div>
 @if ($locked)
     <div class="alert alert-success d-flex justify-content-between align-items-center flex-wrap gap-2 py-2 score-lock-banner" role="status">
@@ -42,6 +42,7 @@
                     @endif
                     <div class="fs-5 fw-semibold d-flex align-items-center gap-2">
                         <span class="side-chip {{ $slot === 'a' ? 'side-aka' : 'side-shiro' }}" tabindex="0" role="img" aria-label="{{ $slot === 'a' ? 'AKA (rojo)' : 'SHIRO (blanco)' }}"><span class="side-text">{{ $slot === 'a' ? 'AKA' : 'SHIRO' }}</span></span>
+                        <x-competitor-photo :competitor="$registration->competitor" :event="$event" size="lg" class="flex-shrink-0" />
                         <span class="text-break">{{ $registration->competitor->displayName() }}</span>
                         @if ($winner)<span class="badge text-bg-success">Ganador</span>@endif
                     </div>

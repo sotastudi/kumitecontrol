@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable([
-    'category_id', 'number', 'round', 'position', 'is_bronze', 'required_participants',
+    'category_id', 'number', 'round', 'position', 'is_bronze', 'is_prelim', 'required_participants',
     'slot_a_id', 'slot_b_id', 'winner_id', 'result_type', 'next_bout_id', 'next_slot', 'loser_next_bout_id', 'loser_next_slot',
 ])]
 class Bout extends Model
@@ -16,6 +16,7 @@ class Bout extends Model
     {
         return [
             'is_bronze' => 'boolean',
+            'is_prelim' => 'boolean',
             'slot_a_id' => 'integer',
             'slot_b_id' => 'integer',
             'winner_id' => 'integer',

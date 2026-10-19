@@ -33,6 +33,16 @@ class RegistrationInBracketTest extends TestCase
         $this->assertTrue($category->refresh()->bracketIsStale());
     }
 
+    public function test_bracket_with_exempt_in_round_two_is_not_stale_until_a_new_registration(): void
+    {
+        $category = $this->generated(20);
+        $this->assertFalse($category->bracketIsStale());
+
+        Registration::factory()->confirmed()->forCategory($category)->create();
+
+        $this->assertTrue($category->refresh()->bracketIsStale());
+    }
+
     public function test_cancelling_a_participant_is_blocked_once_results_exist(): void
     {
         $category = $this->generated(4);
