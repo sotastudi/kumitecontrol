@@ -18,13 +18,13 @@
         <div class="mb-2"><img src="{{ route('panel.competitors.photo', [$event, $competitor]) }}?v={{ $competitor->updated_at?->timestamp }}" alt="Foto actual" class="img-thumbnail" style="max-height: 10rem"></div>
     @endif
     <input type="file" id="photo" name="photo" accept="image/jpeg,image/png,image/webp" class="form-control @error('photo') is-invalid @enderror">
-    <div class="form-text">JPG, PNG o WebP, máximo 3 MB. Solo se muestra públicamente si el organizador lo permite en el evento y tú lo marcas aquí. Si eres menor, solo con el consentimiento de tu representante.</div>
+    <div class="form-text">JPG, PNG o WebP, máximo 3 MB. Solo se muestra públicamente si el organizador lo permite en el evento y la casilla de abajo está marcada. Si es menor, solo con el consentimiento de su representante.</div>
     @error('photo')<div class="invalid-feedback">{{ $message }}</div>@enderror
     @if ($competitor?->hasPhoto())
         <x-check name="remove_photo" label="Quitar la foto actual" :checked="false" />
     @endif
     {{-- Nueva ficha: marcada por defecto (la columna es NOT NULL con valor true). --}}
-    <x-check name="photo_public" label="Mostrar mi foto públicamente (si el organizador lo permite)" :checked="$competitor?->photo_public ?? true" />
+    <x-check name="photo_public" label="Mostrar la foto públicamente (si el organizador lo permite)" :checked="$competitor?->photo_public ?? true" />
 </div>
 <div class="row">
     <div class="col-md-6"><x-field name="email" type="email" label="Correo electrónico" :value="$competitor?->email" /></div>

@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Enums\Sex;
+use App\Http\Requests\Concerns\DiscardsEmptyPhotoPublic;
 use App\Models\Competitor;
 use App\Support\MartialLevels;
 use Illuminate\Foundation\Http\FormRequest;
@@ -11,17 +12,11 @@ use Illuminate\Validation\Validator;
 
 class CompetitorRequest extends FormRequest
 {
+    use DiscardsEmptyPhotoPublic;
+
     public function authorize(): bool
     {
         return true; // La propiedad se comprueba en el middleware can:manage,event.
-    }
-
-    /** photo_public es NOT NULL: un valor vacío se descarta para conservar el valor por defecto. */
-    protected function prepareForValidation(): void
-    {
-        if ($this->has('photo_public') && $this->input('photo_public') === null) {
-            $this->request->remove('photo_public');
-        }
     }
 
     public function rules(): array

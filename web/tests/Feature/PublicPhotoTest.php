@@ -3,12 +3,12 @@
 namespace Tests\Feature;
 
 use App\Enums\ClubStatus;
-use App\Models\Category;
 use App\Enums\EventStatus;
+use App\Models\Category;
 use App\Models\Competitor;
-use App\Models\Registration;
 use App\Models\Event;
 use App\Models\EventClub;
+use App\Models\Registration;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Blade;
@@ -102,6 +102,23 @@ class PublicPhotoTest extends TestCase
         $this->assertNull($competitor->publicPhotoUrl($event));
     }
 
+    public function test_ficha_flag_wins_for_a_minor_with_consent(): void
+    {
+        $event = $this->event();
+        $minor = $this->competitor($event, ['birth_date' => '2015-01-01', 'guardian_consent_at' => now(), 'photo_public' => false]);
+
+        $this->assertNull($minor->publicPhotoUrl($event));
+    }
+
+    public function test_no_birth_date_with_consent_shows_photo(): void
+    {
+        $event = $this->event();
+        $competitor = $this->competitor($event, ['guardian_consent_at' => now()]);
+        $competitor->birth_date = null;
+
+        $this->assertNotNull($competitor->publicPhotoUrl($event));
+    }
+
     private function eventPayload(array $o = []): array
     {
         return array_merge([
@@ -142,7 +159,7 @@ class PublicPhotoTest extends TestCase
         $this->assertTrue($competitor->fresh()->photo_public);
 
         $this->actingAs($user)->get(route('panel.competitors.edit', [$event, $competitor]))
-            ->assertSee('Mostrar mi foto públicamente (si el organizador lo permite)')
+            ->assertSee('Mostrar la foto públicamente (si el organizador lo permite)')
             ->assertDontSee('no se publica');
     }
 
@@ -158,7 +175,7 @@ class PublicPhotoTest extends TestCase
         ];
 
         $this->actingAs($club)->get(route('public.registration.create', $event))
-            ->assertSee('Mostrar mi foto públicamente (si el organizador lo permite)')
+            ->assertSee('Mostrar la foto públicamente (si el organizador lo permite)')
             ->assertDontSee('la foto no se publica');
 
         $this->actingAs($club)->post(route('public.registration.store', $event), $base + ['photo_public' => '0'])->assertSessionHasNoErrors();
@@ -280,6 +297,7 @@ class PublicPhotoTest extends TestCase
         $this->assertStringContainsString(route('public.competitors.photo', [$event, $c]), $html);
         $this->assertStringContainsString('competitor-photo-sm', $html);
         $this->assertStringContainsString('loading="lazy"', $html);
+        $this->assertStringContainsString('onerror="this.remove()"', $html);
         $this->assertStringContainsString('alt="Foto de '.e($c->displayName()).'"', $html);
         $this->assertStringContainsString('extra', $html);
         $this->assertStringContainsString('competitor-photo-lg', Blade::render('<x-competitor-photo :competitor="$c" :event="$event" size="lg" />', ['c' => $c, 'event' => $event]));
@@ -304,6 +322,17 @@ class PublicPhotoTest extends TestCase
         ]);
 
         return [$event, $c, $registration];
+    }
+
+    public function test_visitor_sees_photo_only_when_some_category_is_published(): void
+    {
+        [$event, $c] = $this->setUpPhoto();
+        Registration::factory()->confirmed()->create([
+            'category_id' => Category::factory()->for($event)->create(['is_published' => false])->id,
+            'competitor_id' => $c->id,
+        ]);
+
+        $this->withCode($event)->get(route('public.competitors.photo', [$event, $c]))->assertOk();
     }
 
     private function operatorOf(Event $event): User
