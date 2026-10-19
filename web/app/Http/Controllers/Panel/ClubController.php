@@ -188,4 +188,14 @@ class ClubController extends Controller
 
         return back()->with('status', 'Club actualizado.');
     }
+
+    /** Quita de la lista del evento a un club rechazado; su cuenta y sus datos no se tocan. */
+    public function destroy(Event $event, EventClub $club): RedirectResponse
+    {
+        abort_unless($club->event_id === $event->id && $club->status === ClubStatus::Rejected, 404);
+
+        $club->delete();
+
+        return back()->with('status', "Club «{$club->user->name}» eliminado de la lista.");
+    }
 }

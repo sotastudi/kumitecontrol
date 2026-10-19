@@ -32,6 +32,54 @@ class ClubInvitationTest extends TestCase
         $this->get(route('panel.clubs.index', $second))->assertDontSee('<option value="'.$club->id.'">', false);
     }
 
+    public function test_organizer_can_delete_a_rejected_club_from_the_event_list(): void
+    {
+        $owner = User::factory()->create();
+        $event = Event::factory()->for($owner)->registrationOpen()->create();
+        $rejected = $this->clubFor($event, ClubStatus::Rejected, 'Dojo Rechazado');
+        $approved = $this->clubFor($event, ClubStatus::Approved, 'Dojo Aprobado');
+        $registration = $rejected->clubRegistrationFor($event);
+
+        // El botón «Eliminar» solo sale en la fila del club rechazado.
+        $html = $this->actingAs($owner)->get(route('panel.clubs.index', $event))->getContent();
+        $this->assertSame(1, substr_count($html, 'Eliminar este club de la lista del evento'));
+
+        $this->delete(route('panel.clubs.destroy', [$event, $registration]))->assertRedirect()->assertSessionHas('status');
+
+        $this->assertNull($rejected->clubRegistrationFor($event));
+        $this->assertDatabaseHas('users', ['id' => $rejected->id]);
+        $this->assertNotNull($approved->clubRegistrationFor($event));
+
+        // Puede volver a ser invitado.
+        Notification::fake();
+        $this->post(route('panel.clubs.invite', $event), ['email' => $rejected->email])->assertSessionHasNoErrors();
+        $this->assertSame(ClubStatus::Invited, $rejected->clubRegistrationFor($event)->status);
+    }
+
+    public function test_only_rejected_clubs_can_be_deleted(): void
+    {
+        $owner = User::factory()->create();
+        $event = Event::factory()->for($owner)->registrationOpen()->create();
+
+        foreach ([ClubStatus::Approved, ClubStatus::Pending, ClubStatus::Invited] as $i => $status) {
+            $registration = $this->clubFor($event, $status, "Club {$i}")->clubRegistrationFor($event);
+            $this->actingAs($owner)->delete(route('panel.clubs.destroy', [$event, $registration]))->assertNotFound();
+            $this->assertDatabaseHas('event_clubs', ['id' => $registration->id]);
+        }
+    }
+
+    public function test_cannot_delete_a_rejected_club_through_another_event_or_organizer(): void
+    {
+        $owner = User::factory()->create();
+        $event = Event::factory()->for($owner)->registrationOpen()->create();
+        $other = Event::factory()->for($owner)->registrationOpen()->create();
+        $registration = $this->clubFor($other, ClubStatus::Rejected)->clubRegistrationFor($other);
+
+        $this->actingAs($owner)->delete(route('panel.clubs.destroy', [$event, $registration]))->assertNotFound();
+        $this->actingAs(User::factory()->create())->delete(route('panel.clubs.destroy', [$other, $registration]))->assertForbidden();
+        $this->assertDatabaseHas('event_clubs', ['id' => $registration->id]);
+    }
+
     public function test_organizer_cannot_add_a_club_that_is_not_theirs(): void
     {
         $owner = User::factory()->create();
