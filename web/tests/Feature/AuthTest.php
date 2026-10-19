@@ -76,6 +76,21 @@ class AuthTest extends TestCase
         $this->assertAuthenticatedAs($user);
     }
 
+    public function test_reset_password_email_is_in_spanish(): void
+    {
+        $user = User::factory()->create();
+        $mail = (new ResetPassword('token-123'))->toMail($user);
+        $html = (string) $mail->render();
+
+        $this->assertSame('Restablece tu contraseña', $mail->subject);
+        $this->assertStringContainsString('Restablecer contraseña', $html);
+        $this->assertStringContainsString('¡Hola!', $html);
+        $this->assertStringContainsString('Saludos,', $html);
+        $this->assertStringContainsString('copia y pega la siguiente URL', $html);
+        $this->assertStringNotContainsString('Reset Password', $html);
+        $this->assertStringNotContainsString('Regards', $html);
+    }
+
     public function test_reset_link_survives_mail_failure(): void
     {
         // Esquema SMTP inválido, como en producción: el envío síncrono lanza al construir el transporte.
