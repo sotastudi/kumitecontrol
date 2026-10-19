@@ -76,6 +76,15 @@ class AuthTest extends TestCase
         $this->assertAuthenticatedAs($user);
     }
 
+    public function test_reset_form_shows_the_email_from_the_link_as_read_only(): void
+    {
+        $this->get(route('password.reset', ['token' => 'abc', 'email' => 'ana@example.com']))
+            ->assertOk()->assertSee('value="ana@example.com"', false)->assertSee('readonly', false);
+
+        // Sin correo en el enlace el campo sigue editable para poder completarlo.
+        $this->get(route('password.reset', ['token' => 'abc']))->assertOk()->assertDontSee('readonly', false);
+    }
+
     public function test_reset_password_email_is_in_spanish(): void
     {
         $user = User::factory()->create();
